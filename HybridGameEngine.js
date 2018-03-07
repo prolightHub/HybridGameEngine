@@ -132,7 +132,7 @@ var processing = new Processing(canvas, function(processing) {
                     }
                     else if(host.yVel < 0 && host.yPos > object.yPos)
                     {
-                        object.yVel -= host.jumpHeight || 0;
+                        object.yVel -= (host.jumpHeight || 0);
                     }
                 },
                 rectrect : function(host, object)
@@ -1111,21 +1111,23 @@ var processing = new Processing(canvas, function(processing) {
         var levels = {
             'start' : {
                 plan : [
-                    "              ",
-                    "              ",
-                    "              ",
-                    "              ",
-                    "              ",
-                    "     bbb      ",
-                    "           O  ",
-                    "bbb           ",
-                    "b             ",
-                    "b        bbbbb",
-                    "b            b",
-                    "b            b",
-                    "b      cx    b",
-                    "b  p   xc    b",
-                    "bsssbbbbbbbbbb",
+                    "                         ",
+                    "                         ",
+                    "                         ",
+                    "                         ",
+                    "      x          o       ", 
+                    "    bbbb    O            ",
+                    "                       bb",
+                    "bbb                      ",
+                    "b         cc      O      ",
+                    "b        bbbss           ",
+                    "b                   bb   ",
+                    "b                        ",
+                    "b                        ",
+                    "b                        ",
+                    "b      cx                ",
+                    "b  p   xc                ",
+                    "bsssbbbbbbbb   bbbbbbbsss",
                 ], 
             },
         };
@@ -1151,13 +1153,13 @@ var processing = new Processing(canvas, function(processing) {
                         case 's' : 
                             gameObjects.getObject("rect").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                             var object = gameObjects.getObject("rect").getLast();
-                            object.color = color(30, 40, 150);
+                            object.color = color(150, 150, 0);
                             object.restitution = 1.2;
                             break;
                             
                         case "x" : 
                             gameObjects.getObject("dynamicRect").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
-                            gameObjects.getObject("dynamicRect").getLast().color = color(20, 50, 100);
+                            gameObjects.getObject("dynamicRect").getLast().color = color(20, 50, 100, 150);
                             break;
                             
                         case 'o' :
@@ -1166,13 +1168,13 @@ var processing = new Processing(canvas, function(processing) {
                             break;
                             
                         case 'O' :
-                            gameObjects.getObject("circle").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth * 2);
+                            gameObjects.getObject("circle").add(xPos + levelInfo.unitWidth, yPos + levelInfo.unitHeight, levelInfo.unitWidth * 2);
                             gameObjects.getObject("circle").getLast().color = color(20, 100, 50);
                             break;     
                         
                         case 'c' :    
                             gameObjects.getObject("dynamicCircle").add(xPos, yPos, levelInfo.unitWidth);
-                            gameObjects.getObject("dynamicCircle").getLast().color = color(20, 50, 100);
+                            gameObjects.getObject("dynamicCircle").getLast().color = color(20, 50, 100, 150);
                             break;
                             
                         case 'p' : 
@@ -1185,7 +1187,8 @@ var processing = new Processing(canvas, function(processing) {
         
         var drawBackground = function()
         {
-            fill(10, 10, 150);
+            //fill(147 - 90, 221 - 90, 250 - 90);
+            fill(40, 80, 80);
             stroke(0, 0, 0);
             rect(levelInfo.xPos, levelInfo.yPos, levelInfo.width, levelInfo.height);
         };
