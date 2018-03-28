@@ -83,6 +83,7 @@ var processing = new Processing(canvas, function(processing) {
           var game = {
               gameState : "play",
               fps : 30,
+              version : "v0.2.7",
           };
           var levelInfo = {
               level : "start",
@@ -3124,6 +3125,7 @@ var processing = new Processing(canvas, function(processing) {
               text("inAir " + player.inAir, 10, 76);
               text("hp " + player.hp.toFixed(2), 10, 90);
               //text("crate inAir " + gameObjects.getObject("crate")[0].inAir, 10, 104);
+              text(game.version, 360, 20);
           };
           
           var draw = function()
