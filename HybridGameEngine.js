@@ -33,7 +33,7 @@ var processing = new Processing(canvas, function(processing) {
           //////////Hybrid Game Engine/////////////
           /**
             *@Auther Prolight
-            *@Version 0.2.7
+            *@Version 0.2.8
             
             @How :
                 Use the arrow keys to move. Down to go through 
@@ -83,7 +83,7 @@ var processing = new Processing(canvas, function(processing) {
           var game = {
               gameState : "play",
               fps : 30,
-              version : "v0.2.7",
+              version : "v0.2.8",
           };
           var levelInfo = {
               level : "start",
@@ -1120,34 +1120,35 @@ var processing = new Processing(canvas, function(processing) {
                                           rect2.yVel = min(rect2.yVel, 0);
                                           if(rect1.yVel > 0)
                                           {
-                                              rect1.yVel = max(rect1.yVel + (rect1.gravity * 1.1 || 1), 0);
+                                              rect1.yVel = max(rect1.yVel + (rect1.gravity * 1.2 || 1), 0);
                                           }
-                                         // println(rect1.inAir);
-                                          if(rect2.bottom || (rect2.inAir && !rect1.inAir))
+                                          if(rect2.bottom || (rect1.top && rect1.bottom && rect1.yVel <= rect2.yVel))
                                           {
-                                              rect2.yVel = abs(rect1.yVel);
                                               rect1.yVel = max(rect1.yVel, 0);
                                               rect2.yVel = max(rect2.yVel, 0);
-                                              
-                                              rect2.inAir = true;
+                                              rect2.yVel += abs(rect1.yVel);
                                               rect2.bottom = false;
+                                              if(rect1.top)
+                                              {
+                                                  rect1.top = false;  
+                                                  rect1.bottom = false;
+                                              }
                                           }
                                           rect2.top = true;
                                       }else{
                                           rect1.yVel = 0;
                                           rect1.bottom = true;
-                                          rect1.inAir = true;
                                       }
                                       fail = false;
-                                      
+                                      rect1.inAir = true;
                                       rect1.yPos = rect2.yPos + rect2.height;
                                   }
-                                  if(pushY < 0 && up && sUp)
+                                  else if(pushY <= 0 && up && sUp)
                                   {
                                       if(rect2Moveable)
                                       {
                                           rect2.yVel = min(rect2.yVel, (rect2.gravity || 1));
-                                          if(rect2.yVel < 0)
+                                          if(rect2.yVel <= 0)
                                           {
                                               rect1.yVel += rect2.yVel;
                                           }
@@ -1155,10 +1156,20 @@ var processing = new Processing(canvas, function(processing) {
                                       }else{
                                           rect1.yVel = 0;
                                           rect1.top = true;
-                                          rect1.inAir = false;
                                       }
                                       fail = false;
-                                      rect1.yPos = rect2.yPos - rect1.height;
+                                      rect1.inAir = false;
+                                      if(rect1.yPos + rect1.height < rect2.middleYPos)
+                                      {
+                                          rect1.yPos = rect2.yPos - rect1.height;
+                                      }else{
+                                          if(rect2Moveable)
+                                          {
+                                              rect2.yPos = rect1.yPos + rect1.height;
+                                              //rect2.yVel = max(rect2.yVel, 10);
+                                              //rect1.yVel = max(rect1.yVel, 10);
+                                          }
+                                      }
                                   }
                               }
                           }
@@ -2829,13 +2840,13 @@ var processing = new Processing(canvas, function(processing) {
                       "                       gg",
                       "                         ",
                       "                O        ",
-                      "gggg        ddd          ",
-                      "d x       x  ad     gg   ",
+                      "gggg   x    ddd          ",
+                      "d x    x  x  ad     gg   ",
                       "d     ss  x  Kd          ",
-                      "d         ggggd          ",
+                      "d p       ggggd          ",
                       "d^^                      ",
                       "d a    a                 ",
-                      "d D p  S        cc       ",
+                      "d D    S        cc       ",
                       "dggggggggggg##ggggggggsss",
                   ],
               },
