@@ -11,18 +11,18 @@ var processing = new Processing(canvas, function(processing) {
     processing.keyPressed = function () { keyIsPressed = true; };
     processing.keyReleased = function () { keyIsPressed = false; };
 
-    function getImage(s) {
+    function getImage(s) {s
         var url = "https://www.kasandbox.org/programming-images/" + s + ".png";
         processing.externals.sketch.imageCache.add(url);
         return processing.loadImage(url);
     }
-
+    
     function getLocalImage(url) {
         processing.externals.sketch.imageCache.add(url);
         return processing.loadImage(url);
     }
 
-    // use degrees rather than radians in rotate function
+    // use degrees rather than radians in rotate functions
     var rotateFn = processing.rotate;
     processing.rotate = function (angle) {
         rotateFn(processing.radians(angle));
@@ -33,7 +33,7 @@ var processing = new Processing(canvas, function(processing) {
           //////////Hybrid Game Engine/////////////
           /**
             *@Auther Prolight
-            *@Version 0.2.5
+            *@Version 0.2.7
             
             @How :
                 Use the arrow keys to move. Down to go through 
@@ -65,14 +65,16 @@ var processing = new Processing(canvas, function(processing) {
               * v0.2.3 Image and screenUtils delegates / Json fully in place
               * v0.2.4 LoadImage function is pretty much done, added extra cloud graphics and a Sun, 
                        plus checkPoints now are flags, 
-              * v0.2.5* Added Dynamic rectangle physics and the key graphic, crates (with nicer collision) are now in the game
+              * v0.2.5 Added Dynamic rectangle physics and the key graphic, crates (with nicer collision) are now in the game
                         just needs the player sprite and then it will be to the next version
+              * 0.2.6 Signs, oneways and moving platforms are added 
               
            Future Updates :
-              * a0.2.5 Graphics for the current gameObjects will be complete
-              
-             Needs :
-               * Graphics for the player
+                0.2.8 physics for the current gameObjects are clear and complete
+                0.2.9 Graphics update
+                0.3.0 Slopes
+           Needs :
+                slopes
           **/
           
           //Feel free to look through the code
@@ -229,78 +231,6 @@ var processing = new Processing(canvas, function(processing) {
                   fill(210, 200, 40);
                   rect(x + 5, y + 5, 40, 40, 10);
               },
-              sprite : function(xPos, yPos, width, height, color)
-              {
-                  fill(52, 84, 173);
-                  rect(xPos + width * 0.25, yPos + height * 0.7, 
-                  width * 0.19, height * 0.3, 10);
-                  rect(xPos + width * 0.55, yPos + height * 0.7, 
-                  width * 0.19, height * 0.3, 10);
-                  
-                  rect(xPos + width * 0.05, yPos + height * 0.35, 
-                  width * 0.2, height * 0.3, 10);
-                  rect(xPos + width * 0.75, yPos + height * 0.35, 
-                  width * 0.2, height * 0.3, 10);
-                  
-                  //Body
-                  fill(color);
-                  rect(xPos + width * 0.20, yPos + height * 0.30, 
-                  width * 0.62, height * 0.5, 10);
-                  
-                  //Head
-                  rect(xPos + width * 0.25, yPos + height * 0.00, 
-                  width * 0.50, height * 0.325, 5);
-                  fill(0, 0, 0);
-                  
-                  //eyes
-                  ellipse(xPos + width * 0.4, yPos + height * 0.1, 
-                  width * 0.1, height * 0.05);
-                  ellipse(xPos + width * 0.6, yPos + height * 0.1, 
-                  width * 0.1, height * 0.05);
-                  fill(53, 171, 38, 150);
-                  rect(xPos + width * 0.25, yPos + height * 0.00, 
-                  width * 0.50, height * 0.15, 5);
-              },
-              toughSprite : function(x, y, w, h, c, s)
-              {
-                  noStroke();
-              
-                  stroke(s || color(36, 121, 145));
-                  fill(c || color(69, 157, 186));
-                  
-                  rect(x + w * 0.1, y + h * 0.1, w * 0.75, h * 0.4, 5);
-                  
-                  rect(x + w * 0.15, y + h * 0.3, w * 0.6, h * 0.4, 5);
-                  
-                  //Right leg
-                  rect(x + w * 0.45, y + h * 0.6, w * 0.4, h * 0.3);
-                  arc(x + w * 0.7, y + h * 0.9, w * 0.4, h * 0.2, 0, 180);
-                  
-                  //left leg
-                  rect(x + w * 0.1, y + h * 0.6, w * 0.4, h * 0.3);
-                  arc(x + w * 0.3, y + h * 0.9, w * 0.4, h * 0.2, 0, 180);
-                  
-                  //head
-                  rect(x + w * 0.225, y + h * 0, w * 0.5, h * 0.2, 5);
-                  
-                  fill(0, 0, 0);
-                  noStroke();
-                  ellipse(x + w * 0.37, y + h * 0.08, 3, 1);
-                  ellipse(x + w * 0.6, y + h * 0.08, 3, 1);
-                  
-                  fill(0, 0, 0, 40);
-                  rect(x + w * 0.33, y + h * 0.35, w * 0.35, h * 0.23, 5);
-                  
-                  rect(x + w * 0.6, y + h * 0.65, w * 0.2, h * 0.25, 5);
-                  rect(x + w * 0.225, y + h * 0.65, w * 0.2, h * 0.25, 5);
-                  fill(c || color(69, 157, 186));
-                  
-                  //arms
-                  stroke(s || color(36, 121, 145));
-                  rect(x, y + h * 0.2, w * 0.25, h * 0.35, 5);
-                  rect(x + w * 0.75, y + h * 0.2, w * 0.25, h * 0.35, 5);
-              
-              },
               key : function(x, y, w, h)
               {
                   var unitW = w / 3;
@@ -340,6 +270,7 @@ var processing = new Processing(canvas, function(processing) {
                       },
                       drawForeground : function()
                       {
+                          noStroke();
                           pushMatrix();
                           translate((cam.focusXPos) * 0.7, (cam.focusYPos) * 0.7);
                           shapes.sun(40, -70);
@@ -438,32 +369,184 @@ var processing = new Processing(canvas, function(processing) {
           };
           
           var storedImages = {
-              "imageA" : pixelFuncs.createPixelImage({
-                  width : 10,
-                  height : 20,
+              "spaceman" : pixelFuncs.createPixelImage({
+                  width : 10, 
+                  height : 20, 
                   replace : true,
-                  pixelSize : 3,
+                  pixelSize : 3, 
                   pixels : [
-                       "1111111111",
-                       "1000000001",
-                       "1000000001",
-                       "1000000001",
-                       " 000000001",
-                       " 000000001",
-                       "1000000001",
-                       "1000000001",
-                       "1000000001",
-                       "1000000001",
-                       "1000000001",
-                       "1000000001",
-                       "1000000001",
-                       "1111111111",
-                       "1111111111",
+                      "aabbbbbbaa",
+                      "abbccccbba",
+                      "abcdccdcba",
+                      "abcdccdcba",
+                      "abccccccba",
+                      "abbccccbba",
+                      "aabbbbbbaa",
+                      "aaaccccaaa",
+                      "aaaceecaaa",
+                      "aaecffceaa",
+                      "aeaceecaea",
+                      "aeaceecaea",
+                      "afaccccafa",
+                      "aaaccccaaa",
+                      "aaaeeeeaaa",
+                      "aaaccccaaa",
+                      "aaacaacaaa",
+                      "aaacaacaaa",
+                      "aaacaacaaa",
+                      "aaafaafaaa",
                   ],
                   pallete : {
-                       '0' : color(0, 106, 199),
-                       '1' : color(0, 0, 0),
-                       '2' : color(255, 0, 0),
+                    'a':-1,
+                    'b':-16773349,
+                    'c':-15751769,
+                    'd':-2960869,
+                    'e':-16734949,
+                    'f':-3970789,
+                  },
+              }),
+              "spacemanRight" : pixelFuncs.createPixelImage({
+                  width : 10, 
+                  height : 20, 
+                  replace : true,
+                  pixelSize : 3, 
+                  pixels : [
+                      "aabbbbbbaa",
+                      "abbccccbba",
+                      "abccdccdba",
+                      "abccdccdba",
+                      "abccccccba",
+                      "abbccccbba",
+                      "aabbbbbbaa",
+                      "aaaccccaaa",
+                      "aaaceecaaa",
+                      "aaecffceaa",
+                      "aeaceecaea",
+                      "aeaceecaea",
+                      "aeaccccafa",
+                      "afaccccaaa",
+                      "aaaeeeeaaa",
+                      "aaaccccaaa",
+                      "aaacaacaaa",
+                      "aaafaacaaa",
+                      "aaaaaacaaa",
+                      "aaaaaafaaa",
+                  ],
+                  pallete : {
+                      'a':-1,
+                      'b':-16773349,
+                      'c':-15751769,
+                      'd':-2960869,
+                      'e':-16734949,
+                      'f':-3970789,
+                  },
+              }),
+              "spacemanRight2" : pixelFuncs.createPixelImage({
+                  width : 10, 
+                  height : 20, 
+                  replace : true,
+                  pixelSize : 3, 
+                  pixels : [
+                      "aabbbbbbaa",
+                      "abbccccbba",
+                      "abccdccdba",
+                      "abccdccdba",
+                      "abccccccba",
+                      "abbccccbba",
+                      "aabbbbbbaa",
+                      "aaaccccaaa",
+                      "aaaceecaaa",
+                      "aaecffceaa",
+                      "aeaceecaea",
+                      "aeaceecaea",
+                      "afaccccaea",
+                      "aaaccccafa",
+                      "aaaeeeeaaa",
+                      "aaaccccaaa",
+                      "aaacaacaaa",
+                      "aaacaafaaa",
+                      "aaacaaaaaa",
+                      "aaafaaaaaa",
+                  ],
+                  pallete : {
+                      'a':-1,
+                      'b':-16773349,
+                      'c':-15751769,
+                      'd':-2960869,
+                      'e':-16734949,
+                      'f':-3970789,
+                  },
+              }),
+              "spacemanLeft" : pixelFuncs.createPixelImage({
+                  width : 10, 
+                  height : 20, 
+                  replace : true,
+                  pixelSize : 3, 
+                  pixels : [
+                      "aabbbbbbaa",
+                      "abbccccbba",
+                      "abdccdccba",
+                      "abdccdccba",
+                      "abccccccba",
+                      "abbccccbba",
+                      "aabbbbbbaa",
+                      "aaaccccaaa",
+                      "aaaceecaaa",
+                      "aaecffceaa",
+                      "aeaceecaea",
+                      "aeaceecaea",
+                      "afaccccaea",
+                      "aaaccccafa",
+                      "aaaeeeeaaa",
+                      "aaaccccaaa",
+                      "aaacaacaaa",
+                      "aaacaafaaa",
+                      "aaacaaaaaa",
+                      "aaafaaaaaa",
+                  ],
+                  pallete : {
+                      'a':-1,
+                      'b':-16773349,
+                      'c':-15751769,
+                      'd':-2960869,
+                      'e':-16734949,
+                      'f':-3970789,
+                  },
+              }),
+              "spacemanLeft2" : pixelFuncs.createPixelImage({
+                  width : 10, 
+                  height : 20, 
+                  replace : true,
+                  pixelSize : 3, 
+                  pixels : [
+                      "aabbbbbbaa",
+                      "abbccccbba",
+                      "abdccdccba",
+                      "abdccdccba",
+                      "abccccccba",
+                      "abbccccbba",
+                      "aabbbbbbaa",
+                      "aaaccccaaa",
+                      "aaaceecaaa",
+                      "aaecffceaa",
+                      "aeaceecaea",
+                      "aeaceecaea",
+                      "aeaccccafa",
+                      "afaccccaaa",
+                      "aaaeeeeaaa",
+                      "aaaccccaaa",
+                      "aaacaacaaa",
+                      "aaafaacaaa",
+                      "aaaaaacaaa",
+                      "aaaaaafaaa",
+                  ],
+                  pallete : {
+                      'a':-1,
+                      'b':-16773349,
+                      'c':-15751769,
+                      'd':-2960869,
+                      'e':-16734949,
+                      'f':-3970789,
                   },
               }),
           };
@@ -589,24 +672,29 @@ var processing = new Processing(canvas, function(processing) {
                   {
                       if(host.xVel > 0)
                       {
-                          object.xVel += host.xForce || 0;
+                          object.xVel += abs(host.xVel) || 0;
                       }
                       else if(host.xVel < 0)
                       {
-                          object.xVel -= host.xForce || 0;
+                          object.xVel -= abs(host.xVel) || 0;
                       }
-                      if(host.yVel > 0)
-                      {
-                          object.yVel += host.yForce || 0;
-                      }
-                      else if(host.yVel < 0 && host.yPos > object.yPos)
+                      
+                      if(host.yVel < 0 && host.yPos > object.yPos)
                       {
                           object.yVel -= (host.jumpHeight || 0);
+                      }
+                      if(host.yPos + host.width < object.yPos)
+                      {
+                          if(object.inAir)
+                          {
+                              object.yPos = object.lastYPos;
+                          }
                       }
                   },
               },
           };
           
+          //Observer (off limits)
           var observer = {
               collisionTypes : {
                   "blank" : {
@@ -628,10 +716,7 @@ var processing = new Processing(canvas, function(processing) {
                           }
                           return inside;
                       },
-                      solveCollision : function(point1, polygon1)
-                      {
-                        
-                      },
+                      solveCollision : function(point1, polygon1) {},
                   },
                   "rectslope" : {
                       colliding : function(rect1, slope1) 
@@ -896,7 +981,6 @@ var processing = new Processing(canvas, function(processing) {
                       },
                       solveCollision : function(rect1, circle1)
                       {
-                          var point1 = {};
                           var angle = atan2(rect1.middleYPos - circle1.yPos, rect1.middleXPos - circle1.xPos);
                           var input = (circle1.radius - circle1.pointDist);
                           var inputX = input * cos(angle);
@@ -905,9 +989,11 @@ var processing = new Processing(canvas, function(processing) {
                           {
                               rect1.xPos += inputX;
                               rect1.yPos += inputY;
-                              rect1.inAir = (rect1.yPos + rect1.height > circle1.yPos);
+                              rect1.inAir = (rect1.yPos >= circle1.yPos);
+                              
                               if(rect1.touchedRect)
                               {
+                                  rect1.collidedWithCircle = true;
                                   //Reboot the collision
                                   if(rect1.lastRectCollider !== undefined)
                                   {
@@ -916,11 +1002,18 @@ var processing = new Processing(canvas, function(processing) {
                                           observer.collisionTypes.rectrect.solveCollision(rect1, rect1.lastRectCollider);
                                       }
                                   }
-                                  rect1.xVel = 0;
-                                  rect1.yVel = 0;
+                                  if(inputX > 0)
+                                  {
+                                      rect1.xVel = max(0, rect1.xVel);
+                                  }
+                                  else if(inputX < 0)
+                                  {
+                                      rect1.xVel = min(0, rect1.xVel);
+                                  }
+                                  rect1.collidedWithCircle = false;
                                   rect1.touchedRect = false; 
                               }
-                              if(!rect1.inAir && !rect.touchedRect)
+                              if(!rect1.inAir)
                               {
                                   rect1.yVel = min(rect1.yVel, rect1.maxYVel * (circle1.friction || 0.25));
                               }
@@ -950,7 +1043,7 @@ var processing = new Processing(canvas, function(processing) {
                                   circle1.inAir = (circle1.yPos > rect1.yPos);
                                   if(circle1.yPos - circle1.radius >= rect1.yPos + rect1.height)
                                   {
-                                      circle1.yVel = 1;
+                                      circle1.yVel = max(circle1.yVel, 0);
                                       circle1.inAir = true;
                                   }
                                   if(!circle1.inAir)
@@ -971,115 +1064,153 @@ var processing = new Processing(canvas, function(processing) {
                       },
                       solveCollision : function(rect1, rect2, extra)
                       {  
-                          if(rect2.width > 3 && rect2.height > 3)
+                          //Middle position method (best)
+                          physics.getMiddleXPos(rect1);
+                          physics.getMiddleYPos(rect1);
+                          physics.getMiddleXPos(rect2);
+                          physics.getMiddleYPos(rect2);
+                          
+                          var yAdjust = rect1.xAcl / 10; (0.15);
+                          var xAdjust = yAdjust;
+                          
+                          var inY = (rect1.yPos + rect1.height);
+                          var inY2 = (rect2.yPos + rect2.height);
+                          var yAdjustRect1Height = rect1.height * yAdjust;
+                          
+                          //Long because it fixes inaccurate top / bottom collisions
+                          var addY = ((inY < inY2 * (1 - yAdjust * 2)) ? 
+                                     ((inY > rect2.yPos) ? abs(yAdjustRect1Height) : 0) : 
+                                     ((rect1.yPos < rect2.yPos + rect2.height) ? -yAdjustRect1Height : 0));
+                                     
+                          var pushX = ((rect1.middleXPos) - rect2.middleXPos);
+                          var pushY = ((rect1.middleYPos + addY) - rect2.middleYPos);
+                          
+                          var rect2Moveable = (!rect2.physics.independent && rect2.physics.movement === "dynamic");
+                          
+                          var fail = true;
+                          if(abs(pushY) > abs(pushX))
                           {
-                              //Middle position method (best)
-                              physics.getMiddleXPos(rect1);
-                              physics.getMiddleYPos(rect1);
-                              physics.getMiddleXPos(rect2);
-                              physics.getMiddleYPos(rect2);
-                              
-                              var yAdjust = rect1.xAcl / 10; (0.15); //Magic number just works I don't know why
-                              var xAdjust = yAdjust;
-                              
-                              var inY = (rect1.yPos + rect1.height);
-                              //Long because it fixes inaccurate top / bottom collisions
-                              var addY = ((inY < rect2.yPos + rect2.height * (1 - yAdjust * 2)) ? 
-                                         ((inY > rect2.yPos) ? abs(rect1.height * yAdjust) : 0) : 
-                                         ((rect1.yPos < rect2.yPos + rect2.height) ? -rect1.height * yAdjust : 0));
-                                         
-                              var pushX = ((rect1.middleXPos) - rect2.middleXPos);
-                              var pushY = ((rect1.middleYPos + addY) - rect2.middleYPos);
-                              
-                              if(abs(pushY) > abs(pushX) && 
-                              (rect1.xPos + rect1.width > rect2.xPos + rect2.width * xAdjust &&
-                              rect1.xPos < rect2.xPos + (rect2.width - rect2.width * xAdjust)))
-                              {
-                                  if(pushY > 0)
+                              var xAdjustRect2Width = rect2.width * xAdjust;
+                              if((rect1.xPos + rect1.width > rect2.xPos + xAdjustRect2Width &&
+                              rect1.xPos < rect2.xPos + (rect2.width - xAdjustRect2Width)))
+                              {   
+                                  var up = true;
+                                  var down = true;
+                                  var sUp = true;
+                                  var sDown = true;
+                                  if(rect2.physics.sides !== undefined)
                                   {
-                                      if(rect2.physics.movement === "dynamic")
+                                      up = rect2.physics.sides.up;  
+                                      down = rect2.physics.sides.down;  
+                                      
+                                      if(!down)
+                                      {
+                                          sUp = (rect1.yPos + rect1.height <= rect2.yPos + abs(rect1.yVel));
+                                      }
+                                      if(!up)
+                                      {
+                                          sDown = (rect2.yPos + rect1.height + abs(rect1.yVel) >= rect1.yPos); 
+                                      }
+                                  }
+                                  if(pushY > 0 && down && sDown && (rect1.collidedWithCircle || rect1.yPos >= inY2 - abs(rect1.yVel)))
+                                  {
+                                      if(rect2Moveable)
                                       {
                                           rect2.yVel = min(rect2.yVel, 0);
                                           if(rect1.yVel > 0)
                                           {
                                               rect1.yVel = max(rect1.yVel + (rect1.gravity * 1.1 || 1), 0);
                                           }
+                                         // println(rect1.inAir);
+                                          if(rect2.bottom || (rect2.inAir && !rect1.inAir))
+                                          {
+                                              rect2.yVel = abs(rect1.yVel);
+                                              rect1.yVel = max(rect1.yVel, 0);
+                                              rect2.yVel = max(rect2.yVel, 0);
+                                              
+                                              rect2.inAir = true;
+                                              rect2.bottom = false;
+                                          }
+                                          rect2.top = true;
                                       }else{
                                           rect1.yVel = 0;
+                                          rect1.bottom = true;
+                                          rect1.inAir = true;
                                       }
-                                      rect1.inAir = true;
+                                      fail = false;
+                                      
                                       rect1.yPos = rect2.yPos + rect2.height;
                                   }
-                                  if(pushY < 0)
+                                  if(pushY < 0 && up && sUp)
                                   {
-                                      if(rect2.physics.movement === "dynamic")
+                                      if(rect2Moveable)
                                       {
-                                          rect2.yVel = min(rect2.yVel, 0);
-      				                            if(rect2.yVel < 0)
+                                          rect2.yVel = min(rect2.yVel, (rect2.gravity || 1));
+                                          if(rect2.yVel < 0)
                                           {
                                               rect1.yVel += rect2.yVel;
                                           }
+                                          rect2.bottom = true;
                                       }else{
                                           rect1.yVel = 0;
+                                          rect1.top = true;
+                                          rect1.inAir = false;
                                       }
-                                      rect1.inAir = false;
+                                      fail = false;
                                       rect1.yPos = rect2.yPos - rect1.height;
                                   }
                               }
-                              if(abs(pushX) > abs(pushY) && 
-                              (rect1.yPos + rect1.height > rect2.yPos + rect2.height * yAdjust &&
-                              rect1.yPos < rect2.yPos + (rect2.height - rect2.height * yAdjust)))
+                          }
+                          if((abs(pushX) > abs(pushY) || (fail || rect1.collidedWithCircle)))
+                          {
+                              var yAdjustRect2Height = rect2.height * yAdjust;
+                              if(rect1.yPos + rect1.height > rect2.yPos + yAdjustRect2Height &&
+                              rect1.yPos < rect2.yPos + (rect2.height - yAdjustRect2Height))
                               {
-                                  if(pushX > 0)
+                                  var right = true;
+                                  var left = true;
+                                  var sRight = true;
+                                  var sLeft = true;
+                                  
+                                  if(rect2.physics.sides !== undefined)
                                   {
-                                      if(rect2.physics.movement === "dynamic" && rect1.xVel < 0)
+                                      right = rect2.physics.sides.right;  
+                                      left = rect2.physics.sides.left;  
+                                      
+                                      if(!left)
+                                      {
+                                          sRight = (rect2.xPos + rect1.width <= rect1.xPos + abs(rect1.xVel));
+                                      }
+                                      if(!right)
+                                      {
+                                          sLeft = (rect1.xPos + rect1.width <= rect2.xPos + abs(rect1.xVel));
+                                      }
+                                  }
+                                  if(pushX > 0 && right && sRight && rect1.xVel < 0)
+                                  {  
+                                      if(rect2Moveable && rect1.xVel < 0)
                                       {
                                           rect2.xVel -= abs(rect1.xVel);
-                                          //rect1.xVel = min(rect1.xVel, 0);// (rect1.xAcl || 1)); //set xVel to only allow to go one direction
+                                          rect1.xVel += abs(rect2.xVel);
+                                          //rect1.xVel = max(1, rect1.xVel);
                                       }else{
                                           rect1.xVel = 0;
                                       }
-                                      rect1.xPos = rect2.xPos + rect2.width;
+                                      //rect1.xVel = 0;
+                                      rect1.xPos = rect2.xPos + rect2.width;// - (abs(rect2.xVel) || 0);
                                   }
-                                  if(pushX < 0)
+                                  if(pushX < 0 && left && sLeft && rect1.xVel > 0)
                                   {
-                                      if(rect2.physics.movement === "dynamic" && rect1.xVel > 0)
+                                      if(rect2Moveable && rect1.xVel > 0)
                                       {
                                           rect2.xVel += abs(rect1.xVel);
-                                          //rect1.xVel = max(rect1.xVel, 0);//-(rect1.xAcl || 1));
+                                          rect1.xVel -= abs(rect2.xVel);
+                                          //rect1.xVel = min(-1, rect1.xVel);
                                       }else{
                                           rect1.xVel = 0;
                                       }
-                                      rect1.xPos = rect2.xPos - rect1.width;
-                                  }
-                              }
-                          }else{
-                               //Last position method     
-                              if((rect1.lastXPos + rect1.width > rect2.xPos && rect1.lastXPos < rect2.xPos + rect2.width))
-                              { 
-                                  rect1.yVel = 0;
-                                  if((rect1.lastYPos < rect2.yPos || rect1.yVel > 0) && (!rect2.ignoreTop))
-                                  {
-                                      rect1.yVel = 0;
-                                      rect1.inAir = false;
-                                      rect1.yPos = rect2.yPos - rect1.height;
-                                  }
-                                  else if((rect1.lastYPos > rect2.yPos || rect1.yVel < 0) && (!rect2.ignoreBottom)) 
-                                  {
-                                      rect1.inAir = true; 
-                                      rect1.yPos = rect2.yPos + rect2.height;
-                                  }
-                              }
-                              if(rect1.lastYPos + rect1.height > rect2.yPos && rect1.lastYPos < rect2.yPos + rect2.height)
-                              {
-                                  rect1.xVel = 0;
-                                  if((rect1.lastXPos < rect2.xPos || rect1.xVel > 0) && (!rect2.ignoreLeft))
-                                  {
-                                      rect1.xPos = rect2.xPos - rect1.width; 
-                                  }
-                                  else if((rect1.lastXPos > rect2.xPos || rect1.xVel < 0) && (!rect2.ignoreRight)) 
-                                  {
-                                      rect1.xPos = rect2.xPos + rect2.width;
+                                      //rect1.xVel = 0;
+                                      rect1.xPos = (rect2.xPos - rect1.width); //+ (abs(rect2.xVel) || 0);
                                   }
                               }
                           }
@@ -1241,9 +1372,9 @@ var processing = new Processing(canvas, function(processing) {
           {  
               var array = inArray || [];
               array.references = {};
-              array.add = function(xPos, yPos, width, height, colorValue)
+              array.add = function(xPos, yPos, width, height, colorValue, a, b, c, d, e, f, h, i, j, k, l, m, o, p, q, r, s, t, u, v, w, x, y, z)
               {
-                  this.push((object.apply === undefined) ? xPos : new object(xPos, yPos, width, height, colorValue)); 
+                  this.push((object.apply === undefined) ? xPos : new object(xPos, yPos, width, height, colorValue, a, b, c, d, e, f, h, i, j, k, l, m, o, p, q, r, s, t, u, v, w, x, y, z)); 
                   this.getLast().name = this.name;
                   this.getLast().arrayName = this.name;
                   this.getLast().index = this.length - 1; 
@@ -1421,6 +1552,7 @@ var processing = new Processing(canvas, function(processing) {
           {
               noFill();
               stroke(0, 0, 0);
+              strokeWeight(1);
               for(var i = 0; i < this.length; i++)
               {
                   for(var j = 0; j < this[i].length; j++)
@@ -1513,11 +1645,17 @@ var processing = new Processing(canvas, function(processing) {
                           {
                               if(objectA.onHit !== undefined)
                               {
-                                  objectA.onHit(objectB);
+                                  if(objectA.onHit(objectB))
+                                  {
+                                      continue;
+                                  }
                               }
                               if(objectB.onHit !== undefined)
                               {
-                                  objectB.onHit(objectA);
+                                  if(objectB.onHit(objectA))
+                                  {
+                                      continue;  
+                                  }
                               }
                               if(objectA.physics.solidObject && objectB.physics.solidObject)
                               {
@@ -1678,20 +1816,20 @@ var processing = new Processing(canvas, function(processing) {
                       {
                            this.xVel += this.xDeacl; 
                       }
-                      if(this.xVel > -this.xDeacl && this.xVel < this.xDeacl)
+                      if(this.xVel >= -this.xDeacl && this.xVel <= this.xDeacl)
                       {
                           this.xVel = 0;
                       }
                   }
                   if(this.boundingBox.xPos <= levelInfo.xPos)
                   {
-                      this.xVel = 1;//abs(this.xVel);//EPSILON;
-                      this.xPos = abs(this.xPos - this.boundingBox.xPos) + levelInfo.xPos;
+                      this.xVel = max(0, this.xVel);
+                      this.xPos = abs(this.xPos - this.boundingBox.xPos) + levelInfo.xPos - (this.diameter || 0);
                   }
                   if(this.boundingBox.xPos + this.boundingBox.width >= levelInfo.xPos + levelInfo.width)
                   {
-                      this.xVel = -1;//-abs(this.xVel);//EPSILON;
-                      this.xPos = (levelInfo.xPos + levelInfo.width - this.boundingBox.width) - abs(this.boundingBox.xPos - this.xPos);
+                      this.xVel = min(0, this.xVel);
+                      this.xPos = (levelInfo.xPos + levelInfo.width - this.boundingBox.width) - abs(this.boundingBox.xPos - this.xPos) + (this.diameter || 0);
                   }
                   this.xVel = constrain(this.xVel, -this.maxXVel, this.maxXVel);
                   this.xPos += this.xVel;
@@ -1715,7 +1853,7 @@ var processing = new Processing(canvas, function(processing) {
               
               this.color = colorValue;
               this.xAcl = 1.5;
-              this.xDeacl = 0.1;
+              this.xDeacl = 0.3;
               this.maxXVel = 4;
               
               this.maxYVel = 12;
@@ -1841,6 +1979,17 @@ var processing = new Processing(canvas, function(processing) {
               this.color = colorValue || color(175, 30, 40);//color(170, 70, 80);
               this.color2 = color(130, 70, 80);
               this.physics.solidObject = false;
+              /*Add padding to the boundingBox so it doesn't kill 
+                you while your standing on an edge of a block */
+              var padding = 0.1; 
+              var xPadding = this.width * padding; 
+              var yPadding = this.height * padding; 
+              var widthPadding = this.width * (1 - padding * 2);
+              var heightPadding = this.height * (1 - padding * 2);
+              this.boundingBox.xPos = this.xPos + xPadding;
+              this.boundingBox.yPos = this.yPos + yPadding;
+              this.boundingBox.width = widthPadding;
+              this.boundingBox.height = heightPadding;
               
               this.grid = [];
               this.setupGrid = function(cols, rows)
@@ -1897,7 +2046,8 @@ var processing = new Processing(canvas, function(processing) {
               
               this.breakPercent = 0;
               this.breakRate = 0.05;
-              this.xDeacl = 0.4; //Turn this up for less glitches
+              this.xDeacl = 0.2; //Turn this up for less glitches
+              
               
               this.draw = function()
               {
@@ -1914,6 +2064,107 @@ var processing = new Processing(canvas, function(processing) {
               screenUtils.loadImage(this, true, "crate");
           };
           gameObjects.addObject("crate", createArray(Crate));
+          
+          var Sign = function(xPos, yPos, width, height, colorValue, message, textColor, fontName)
+          { 
+              Rect.call(this, xPos, yPos, width, height);
+              this.color = colorValue || color(200, 150, 70);
+              this.message = message || "This is a sign";
+              this.textColor = textColor;
+              this.physics.solidObject = false;
+              
+              this.halfWidth = this.width / 2;
+              this.halfHeight = this.height / 2;
+              this.fontName = fontName;
+              
+              this.draw = function()
+              {
+                  fill(this.color);
+                  rect(this.xPos + this.width * 0.4, this.yPos, this.width * 0.2, this.height);
+                  rect(this.xPos, this.yPos, this.width, this.height * 0.6);
+                  fill(0, 0, 0, 50);
+                  rect(this.xPos + this.width * 0.1, this.yPos + this.height * 0.1, this.width * 0.8, this.height * 0.4);
+                  
+                  stroke(0, 0, 0, 50);
+                  strokeWeight(2);
+                  line(this.xPos + this.width * 0.25, this.yPos + this.width * 0.25, this.xPos + this.width * 0.7, this.yPos + this.width * 0.25);
+                  line(this.xPos + this.width * 0.25, this.yPos + this.width * 0.35, this.xPos + this.width * 0.7, this.yPos + this.width * 0.35);
+                  noStroke();
+              };
+              screenUtils.loadImage(this, true, "sign", true);
+              
+              this.load = function()
+              {
+                  this.textSize1 = (this.textSize || 10);
+                  this.startX = this.xPos + this.halfWidth + (this.adjustX || 0);
+                  this.startY = (this.yPos - this.halfHeight) + (this.adjustY || 0);
+                  this.split = ("").split(this.message).length;
+                  this.messageHeight = this.adjustH || split * (this.textSize1 * 2.6);
+                  this.messageWidth = this.adjustW || (this.message.length) * (this.textSize1 / 1.6);
+                  this.messageWidth2 = this.messageWidth * 0.9;
+                  this.messageHeight2 = this.messageHeight * 0.8;
+                  this.textRectX = this.startX - this.messageWidth / 2;
+                  this.textRectY = this.startY - this.messageHeight / 2;
+                  this.textRectX2 = this.startX - this.messageWidth2 / 2;
+                  this.textRectY2 = this.startY - this.messageHeight2 / 2;
+                  
+                  if(this.fontName !== undefined)
+                  {
+                      try{
+                          this.font = createFont(this.fontName);
+                      }
+                      catch (e)
+                      {
+                          println("Error : " + e);
+                      }
+                      this.fontName = undefined;  
+                  }
+              };
+              
+              this.drawMessage = function()
+              {
+                  textAlign(CENTER, CENTER);
+                  if(this.font !== undefined)
+                  {
+                      textFont(this.font);
+                  }
+                  textSize(this.textSize1);
+                  noStroke();
+                  fill(this.color);
+                  rect(this.textRectX, this.textRectY, this.messageWidth, this.messageHeight);
+                  fill(0, 0, 0, 50);
+                  rect(this.textRectX2, this.textRectY2, this.messageWidth2, this.messageHeight2);
+                  fill(this.textColor || 0);
+                  text(this.message, this.startX, this.startY);
+                  textAlign(NORMAL, NORMAL);
+              };
+              
+              this.onCollide = function(object)
+              {
+                  if(object.type === "lifeform")
+                  {
+                      this.active = true;
+                      if(keys[80])
+                      {
+                          println(this.message);
+                      }
+                  }
+              };
+          };
+          gameObjects.addObject("sign", createArray(Sign));
+          var signs = gameObjects.getObject("sign");
+          signs.drawMessage = function()
+          {
+              for(var i = 0; i < signs.length; i++)
+              {
+                  if(signs[i].active)
+                  {
+                      signs[i].drawMessage();
+                      signs[i].active = false;
+                      break;
+                  }
+              }
+          };
           
           var Ring = function(xPos, yPos, diameter, colorValue)
           {
@@ -1997,13 +2248,15 @@ var processing = new Processing(canvas, function(processing) {
               Rect.call(this, xPos, yPos, width, height);
               this.color = colorValue || color(0, 150, 80);
               this.boost = 15;
+              this.xBoost = this.boost;
+              this.yBoost = this.boost;
               
               this.draw = function()
               {
                   fill(this.color);
                   rect(this.xPos, this.yPos, this.width, this.height);
                   fill(0, 0, 0, 50);
-                  rect(this.xPos + this.width * 0.15, this.yPos + this.height * 0.15, this.width * 0.7, this.height * 0.7);
+                  rect(this.xPos + this.width * 0.15, this.yPos + this.height * 0.15, this.width * 0.65, this.height * 0.65);
                   fill(0, 0, 0, 60);
                   triangle(this.xPos, this.yPos + this.height, this.xPos + this.width, this.yPos, this.xPos + this.width, this.yPos + this.height);
               };
@@ -2012,9 +2265,22 @@ var processing = new Processing(canvas, function(processing) {
               
               this.onCollide = function(object)
               {
-                  if(object.yPos < this.yPos + this.height)
+                  var padding = (object.xAcl || 1); //Padding, usually based on acceleration
+                  if(object.xPos + (object.radius || object.width) < this.xPos + (padding))
                   {
-                      object.yVel = -this.boost;
+                      object.xVel = -this.xBoost;
+                  }
+                  else if(object.xPos > this.xPos + this.width - (padding))
+                  {
+                      object.xVel = this.xBoost;
+                  }
+                  if(object.yPos + (object.radius || object.height) < this.yPos + (padding))
+                  {
+                      object.yVel = -this.yBoost;
+                  }
+                  if(object.yPos > this.yPos + this.height - (padding))
+                  {
+                      object.yVel = this.yBoost;
                   }
               };
           };
@@ -2154,6 +2420,214 @@ var processing = new Processing(canvas, function(processing) {
           };
           gameObjects.addObject("checkPoint", createArray(CheckPoint));
           
+          var OneWay = function(xPos, yPos, width, height, colorValue, direction, inHeritance, dynamic)
+          { 
+              if(!dynamic)
+              {
+                  Rect.call(this, xPos, yPos, width, height); 
+              }else{
+                  DynamicRect.call(this, xPos, yPos, width, height); 
+              }
+              
+              this.color = colorValue;
+              this.direction = direction;
+              this.physics.sides = { };
+              
+              switch(this.direction)
+              {   
+                  case "left" :
+                      this.physics.sides.left = true;
+                      break;
+                      
+                  case "right" : 
+                      this.physics.sides.right = true;
+                      break;
+                      
+                  case "up" : 
+                      this.physics.sides.up = true;
+                      break;
+                      
+                  case "down" :
+                      this.physics.sides.down = true;
+                      break;
+              }
+              
+              this.lastDraw = this.draw;
+              this.draw = function()
+              {
+                  noStroke();
+                  fill(this.color);
+                  rect(this.xPos, this.yPos, this.width, this.height);
+                  
+                  var symbol = "L";
+                  var textXPos = this.width * 0.2;
+                  
+                  pushMatrix();
+                  translate(this.xPos, this.yPos);
+                  switch(this.direction)
+                  {   
+                      case "right" : 
+                          translate(this.width, this.height);
+                          rotate(180);
+                          break;
+                          
+                      case "up" : 
+                          translate(this.width, 0);
+                          rotate(90);
+                          break;
+                          
+                      case "down" :
+                          translate(0, this.height);
+                          rotate(270);
+                          break;
+                  }
+                  fill(0, 0, 0, 100);
+                  textAlign(CENTER, CENTER);
+                  textSize(20 * this.width / 40);
+                  fill(0, 0, 0, 100);
+                  rect(this.width * 0.0, 0, this.width * 0.1, this.height);
+                  rect(this.width * 0.3, 0, this.width * 0.1, this.height);
+                  for(var i = 0; i < floor(this.height / 10); i++)
+                  {
+                      text(symbol, 0 + textXPos, 0 + this.height * 0.10 + 10 * i);
+                  }
+                  textAlign(NORMAL, NORMAL);
+                  popMatrix();
+              };
+              
+              if(!inHeritance)
+              {
+                  screenUtils.loadImage(this, true, "oneWay" + this.direction);
+              }
+          };
+          gameObjects.addObject("oneWay", createArray(OneWay));
+          
+          var MovingPlatform = function(xPos, yPos, width, height, colorValue, direction)
+          {
+              OneWay.call(this, xPos, yPos, width, height, colorValue, direction, true, true);
+              this.physics.independent = true;
+              this.updateVel = function() {};
+              this.physics.sides = {
+                  up : true, 
+              };
+              
+              this.lastUpdate = this.update;
+              this.gravity = 0;
+              
+              this.xSpeed = 0;
+              this.xVel = this.xSpeed;
+              this.lastXVel = this.xSpeed;
+              
+              this.ySpeed = 0;
+              this.yVel = this.ySpeed;
+              this.lastYVel = this.ySpeed;
+              
+              this.lastYPos = this.yPos;
+              this.lastXPos = this.xPos;
+              
+              this.draw = function()
+              {
+                  fill(this.color);
+                  rect(this.xPos, this.yPos, this.width, this.height);
+                  fill(0, 0, 0, 50);
+                  triangle(this.xPos, this.yPos, this.xPos + this.width, this.yPos, this.xPos, this.yPos + this.height);
+              }
+              
+              this.update = function()
+              {
+                  if(this.xVel === 0 && this.xSpeed !== 0)
+                  {
+                      this.xVel = ((random(0, 100) > 50) ? -this.xSpeed : this.xSpeed);  
+                  }
+                 
+                  if(this.xVel < 0)
+                  {
+                      this.xVel = -this.xSpeed;
+                  }
+                  else if(this.xVel > 0)
+                  {
+                      this.xVel = this.xSpeed;
+                  }
+                  if(this.xPos <= levelInfo.xPos)
+                  {
+                      this.xVel = this.xSpeed;
+                  }
+                  else if(this.xPos >= levelInfo.xPos + levelInfo.width - this.width)
+                  {
+                      this.xVel = -this.xSpeed;
+                  }
+                  this.xPos += this.xVel;
+                  
+                  if(this.yVel === 0 && this.ySpeed !== 0)
+                  {
+                      this.yVel = ((random(0, 100) > 50) ? -this.ySpeed : this.ySpeed);  
+                  }
+                  if(this.yVel < 0)
+                  {
+                      this.yVel = -this.ySpeed;
+                  }
+                  else if(this.yVel > 0)
+                  {
+                      this.yVel = this.ySpeed;
+                  }
+                  if(this.yPos <= levelInfo.yPos)
+                  {
+                      this.yVel = this.ySpeed;
+                  }
+                  else if(this.yPos >= levelInfo.yPos + levelInfo.height - this.height)
+                  {
+                      this.yVel = -this.ySpeed;
+                  }
+                  this.yPos += this.yVel;
+                  
+                  this.lastUpdate();
+                  this.lastYPos = this.yPos;
+                  this.lastXPos = this.xPos;
+              };  
+              
+              this.onCollide = function(object)
+              {  
+                  if(object.type === "block" && object.physics.solidObject && object.arrayName !== "crate")
+                  {
+                      this.xVel = ((this.xPos > object.xPos) ? this.xSpeed : -this.xSpeed);
+                      this.yVel = ((this.yPos > object.yPos) ? this.ySpeed : -this.ySpeed);
+                  }
+                  else if(object.physics.movement === "dynamic" || object.arrayName === "crate")
+                  {
+                      var condition = false;
+                      switch(this.direction)
+                      {   
+                           case "up" : 
+                               condition = (object.yPos + object.height <= this.yPos + abs(object.yVel || 0) && object.yVel >= 0);
+                               break;
+                               
+                           case "down" :
+                               conditon = (object.yPos - abs(object.yVel || 0) <= this.yPos + this.height && object.yVel <= 0);
+                               break;
+                       }
+                       if(condition)
+                       {
+                           if(this.xVel !== 0 && abs(object.xVel) < abs(this.xVel) && this.direction !== "down")
+                           {
+                               object.xVel = this.xVel;
+                           }
+                           if(this.yVel !== 0 && abs(object.yVel) < abs(this.yVel) && this.direction !== "down")
+                           {
+                               object.yVel = this.yVel;
+                           }
+                       } 
+                       if(this.direction === "down")
+                       {
+                           object.yVel = max(0, object.yVel); 
+                           object.inAir = true;
+                       }
+                       this.xPos = this.lastXPos;
+                       this.yPos = this.lastYPos;
+                  }
+              };
+          };
+          gameObjects.addObject("movingPlatform", createArray(MovingPlatform));
+          
           var Player = function(xPos, yPos, width, height, colorValue)
           { 
               Rect.call(this, xPos, yPos, width, height);  
@@ -2168,9 +2642,9 @@ var processing = new Processing(canvas, function(processing) {
               this.maxXVel = 4;
               this.xForce = 2;
               
-              this.maxYVel = 12;
-              this.gravity = 0.4;
-              this.jumpHeight = 10.5;
+              this.maxYVel = 12 + 2;
+              this.gravity = 0.55;
+              this.jumpHeight = 10.5 + 2;
               this.yForce = 0;
               
               this.controls = {
@@ -2194,14 +2668,37 @@ var processing = new Processing(canvas, function(processing) {
               
               this.maxHp = 10;
               this.hp = this.maxHp;
+              this.imageName = "spaceman";
+              this.marchTimer = 0;
+              this.marchTime = 10;
               
               this.draw = function()
               {
-                  //shapes.sprite(this.xPos, this.yPos, this.width, this.height, color(18, 155, 201));
-                  image(storedImages.imageA, this.xPos, this.yPos);//, this.width, this.height); 
+                  if(this.xVel > this.xAcl)
+                  {
+                      if(!this.inAir)
+                      {
+                          this.marchTimer++;
+                      }
+                      this.imageName = (this.marchTimer < this.marchTime / 2) ? "spacemanRight" : "spacemanRight2";
+                  }
+                  else if(this.xVel < -this.xAcl)
+                  {
+                      if(!this.inAir)
+                      {
+                          this.marchTimer++;
+                      }
+                      this.imageName = (this.marchTimer < this.marchTime / 2) ? "spacemanLeft" : "spacemanLeft2";
+                  }else{
+                      this.imageName = "spaceman";
+                  }
+                  if(this.marchTimer > this.marchTime)
+                  {
+                      this.marchTimer = 0; 
+                  }
+                  
+                  image(storedImages[this.imageName], this.xPos, this.yPos, this.width, this.height); 
               };
-              //screenUtils.letImage(this, "imageA");
-              //screenUtils.loadImage(this, true, "player", true);
               
               this.update = function()
               {
@@ -2279,10 +2776,11 @@ var processing = new Processing(canvas, function(processing) {
               
               /*Specific code*/
               this.goto = {};
-              this.openDoor = function()
+              this.activate = function()
               {
                   return (!this.inAir && this.controls.down());
               };
+              this.openDoor = this.activate;
               this.useCheckPoint = this.openDoor;
               this.collectItem = this.useCheckPoint;
               this.collectItem = function() 
@@ -2312,6 +2810,14 @@ var processing = new Processing(canvas, function(processing) {
                           symbol : 'a',
                       },
                   },
+                  signs : {
+                      'a' : {
+                          message : "Welcome \n user",
+                          adjustY : -40,
+                          adjustW : 70,
+                          adjustH : 30,
+                      },
+                  },
                   plan : [
                       "                         ",
                       "                         ",
@@ -2322,14 +2828,14 @@ var processing = new Processing(canvas, function(processing) {
                       "                       gg",
                       "                         ",
                       "                O        ",
-                      "gggg      x ddd          ",
-                      "d         x  ad     gg   ",
-                      "d         x  Kd          ",
+                      "gggg        ddd          ",
+                      "d x       x  ad     gg   ",
+                      "d     ss  x  Kd          ",
                       "d         ggggd          ",
-                      "d                        ",
-                      "d a                      ",
-                      "d D  p          cc      ",
-                      "dggggggggggg###gggggggsss",
+                      "d^^                      ",
+                      "d a    a                 ",
+                      "d D p  S        cc       ",
+                      "dggggggggggg##ggggggggsss",
                   ],
               },
               "level2" : {
@@ -2344,7 +2850,7 @@ var processing = new Processing(canvas, function(processing) {
                        "                                ",
                        "                                ",
                        "                               b",
-                       "                           f   D",
+                       "              ##           f   D",
                        "            gggggggg     ggggggg",
                        "                                ",
                        "                                ",
@@ -2392,11 +2898,9 @@ var processing = new Processing(canvas, function(processing) {
           {
               //Init with a checkPoint
               gameObjects.getObject("checkPoint").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
-              
               if(gameObjects.getObject("player").length <= 0)
               {
-                  gameObjects.getObject("player").add(xPos, yPos - (levelInfo.unitHeight * 0.5), levelInfo.unitWidth, levelInfo.unitHeight * 1.5, colorValue);
-  
+                  gameObjects.getObject("player").add(xPos, yPos - (levelInfo.unitHeight * 1.0), levelInfo.unitWidth, levelInfo.unitHeight * 2.0, colorValue);
                   //Set checkPoint
                   gameObjects.getObject("checkPoint").getLast().setObjectProps(gameObjects.getObject("player").getLast(0));
               }
@@ -2438,9 +2942,18 @@ var processing = new Processing(canvas, function(processing) {
                               gameObjects.getObject("ground").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(120, 96, 81));
                               break;
                               
-                          case 'i' : 
-                              gameObjects.getObject("rect").add(xPos, yPos, levelInfo.unitWidth * 0.1, levelInfo.unitHeight, color(120, 96, 81));
-                              break;   
+                          case 'm' :
+                              gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(200, 200, 20), "up");
+                              gameObjects.getObject("movingPlatform").getLast().xSpeed = 3;
+                              break;  
+                              
+                          case 'M' :
+                              gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(200, 200, 20), "up");
+                              gameObjects.getObject("movingPlatform").getLast().ySpeed = 3;
+                              break;      
+                          case '<' : case '>' : case '^' : case 'v' : 
+                              gameObjects.getObject("oneWay").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(120, 96, 81), ({'<':"left",'>':"right",'^':"up",'v' :"down"}[level.plan[row][col]]));
+                              break; 
                               
                           case 'd' : 
                               gameObjects.getObject("dirt").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(120, 96, 81));
@@ -2452,6 +2965,37 @@ var processing = new Processing(canvas, function(processing) {
                               
                           case 's' : 
                               gameObjects.getObject("spring").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                              break;
+                         
+                          case 'S' : 
+                              var message = "";
+                              var textColor = 0;
+                              var colorValue = 0;
+                              var fontName = undefined;
+                              var symbol = this.getSymbol(col, row - 1, level.plan);
+                              var condition = (level.signs !== undefined && level.signs[symbol] !== undefined);
+                              
+                              if(condition)
+                              {
+                                  message = level.signs[symbol].message;
+                                  textColor = level.signs[symbol].textColor;
+                                  colorValue = level.signs[symbol].color;
+                                  fontName = level.signs[symbol].font;
+                              }
+                              
+                              gameObjects.getObject("sign").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, colorValue, message, textColor, fontName);
+                             
+                              if(condition)
+                              {
+                                  var sign = gameObjects.getObject("sign").getLast();
+                                  sign.adjustX = level.signs[symbol].adjustX;
+                                  sign.adjustY = level.signs[symbol].adjustY;
+                                  sign.adjustW = level.signs[symbol].adjustW;
+                                  sign.adjustH = level.signs[symbol].adjustH;
+                                  sign.textSize = level.signs[symbol].textSize;
+
+                              }
+                              sign.load();
                               break;
                           
                           case 'l' : case 'r' : case 'L' : case 'R' :
@@ -2566,6 +3110,7 @@ var processing = new Processing(canvas, function(processing) {
                   //gameObjects.drawBoundingBoxes();
                   //cameraGrid.draw();
                   //cam.draw();
+                  signs.drawMessage();
               popMatrix();
               //cam.drawOutline();
   
@@ -2577,6 +3122,8 @@ var processing = new Processing(canvas, function(processing) {
               text("xVel " + player.xVel.toFixed(2), 10, 48);
               text("yVel " + player.yVel.toFixed(2), 10, 62);
               text("inAir " + player.inAir, 10, 76);
+              text("hp " + player.hp.toFixed(2), 10, 90);
+              //text("crate inAir " + gameObjects.getObject("crate")[0].inAir, 10, 104);
           };
           
           var draw = function()
