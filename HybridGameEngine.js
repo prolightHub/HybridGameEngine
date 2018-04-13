@@ -45,10 +45,8 @@ var processing = new Processing(canvas, function(processing)
     {  
 /**   Hybrid Game Engine  **/
 /**
-    @Auther Prolight
-    @Version 0.3.1 beta
-
-    NOTE  : Will be beta in v0.3.0
+    @Author Prolight
+    @Version 0.3.6 beta
 
     @How  :
         Use the arrow keys to move. Down to go through 
@@ -87,7 +85,15 @@ var processing = new Processing(canvas, function(processing)
     * 0.2.8 Slope Prototype added
     * 0.2.9 Images can now load in khan academy mode
     * 0.3.0 completed slopes though they seem a little glitchy
-    * 0.3.0 fps and physics adjusted
+    * 0.3.1 fps and physics adjusted
+    * 0.3.2 Changed graphics to load
+    * 0.3.3 - 0.3.4 Added a better player graphic. Made clouds in background move. Removed old background and code
+    Title Screen added (too much like original) Pause Menu added. How and extras menu (For extra stuff) added.
+    Added an infomation bar.
+    * 0.3.5 Made the restart key 'r' so you can't hold it down and have the game keep restarting. Added a tuturial level
+    * 0.3.6 Added platforms using oneways, added coins, got rid of suddle glitches with slopes and oneWays.
+    
+    Added water
     
     Future Updates  :
     **/
@@ -96,18 +102,25 @@ var processing = new Processing(canvas, function(processing)
 /////////////////Code///////////////////
 
 var game = {
-    gameState : "play",
+    gameState : "menu",
     fps : 60,
-    version : "v0.3.0 beta",
+    version : "v0.3.6 beta",
+    debugMode : true, //Turn this to true to see the fps
 };
 var levelInfo = {
-    level : "start",
+    level : "intro",
     xPos : 0,
     yPos : 0,
     width : width,
     height : height,
+    /*Changing this will effect game performance. 
+    Too low means that there will be too many cells for the camera to loop through.
+    Too high and it means that too many collisions will be checked*/
     cellWidth : 100,
     cellHeight : 100,
+    /*Changing this will also effect game performance
+    Too low means too many objects in each cell and there for lower fps.
+    Too high and you won't be able to see anything but you'll get higher fps*/
     unitWidth : 30,
     unitHeight : 30,
 };
@@ -115,34 +128,34 @@ var loader = {
     firstLoad : true,
 };
 
-
 var fpsCatcher = {
     lastSecond : second(),
     countedFrames : 0,
     actualFps : game.fps,
     update : function()
     {
-        this.countedFrames++;
         if(this.lastSecond !== second())
         {
             this.actualFps = this.countedFrames;
             this.countedFrames = 0;
         }
-        
+        this.countedFrames++;
         this.lastSecond = second();
     },
 };
 
-
 //Constants
 var PI_MULT = PI / 180;
-var MODE = "pjs";
+var MODE = "pjs";//Ka or pjs
 var STICKY_THRESHOLD = 0.004;
 
 //Make sure we have the right angle mode.
 angleMode = "degrees";
 
-var cam, cameraGrid, GameObject;
+//predefine
+var cam, cameraGrid, GameObject, observer, gameObjects;
+
+smooth();
 
 var keys = [];
 var keyPressed = function()
@@ -152,6 +165,88 @@ var keyPressed = function()
 var keyReleased = function()
 {
     keys[keyCode] = false;
+};
+
+var Button = function(xPos, yPos, width, height, colorVal, message)
+{
+    this.xPos = xPos;
+    this.yPos = yPos;
+    this.width = width;
+    this.height = height;
+    this.color = colorVal;
+    //this.font = createFont("sans serif");
+    this.message = message;
+    
+    this.textColor = color(0, 0, 0);
+    this.draw = function()
+    {
+        noStroke();
+        fill(this.color);
+        rect(this.xPos, this.yPos, this.width, this.height, this.round);
+        fill(0, 0, 0);
+        textAlign(CENTER, CENTER);
+        textSize(this.textSize || 12);
+        if(this.font !== undefined)
+        {
+            textFont(this.font);
+        }
+        fill(this.textColor || this.color);
+        text(this.message, this.xPos + this.width / 2, this.yPos + this.height / 2);
+    };
+    
+    this.clicked = function()
+    {
+        return (mouseIsPressed && observer.collisionTypes.pointrect.colliding({xPos : mouseX, yPos : mouseY}, this));  
+    };
+};
+
+var buttons = {
+    play : new Button(160, 210, 80, 25, color(11, 68, 153, 100), "Play"),
+    how : new Button(160, 245, 80, 25, color(11, 68, 153, 100), "How"),
+    extras : new Button(160, 280, 80, 25, color(11, 68, 153, 100), "Extras"),
+    back : new Button(160, 210 - 30, 80, 25, color(11, 68, 153, 100), "Back"),
+    restart : new Button(160, 245 - 30, 80, 25, color(11, 68, 153, 100), "Restart"),
+    menu : new Button(160, 280 - 30, 80, 25, color(11, 68, 153, 100), "Menu"),
+    back2 : new Button(0, 375, 75, 25, color(11, 68, 153, 100), "Back"),
+    settings : new Button(160, 210, 80, 25, color(11, 68, 153, 100), "Settings"),
+    debugMode : new Button(145, 200, 110, 25, color(11, 68, 153, 100), "DebugMode " + game.debugMode),
+};
+buttons.load = function()
+{
+    for(var i in this)
+    {
+        this[i].round = 7; 
+        this[i].textColor = color(20, 20, 20, 150);
+    }
+};
+
+var Bar = function(x, y, w, h, c, inRound)
+{
+    this.x = x;
+    this.y = y;
+    this.w = w;
+    this.h = h;
+    this.c = c;
+    
+    this.input = 0;
+    this.set = function(amt, max)
+    {
+        this.input = (this.w * amt) / max;
+    };
+    
+    this.draw = function(amt, max) 
+    {
+        fill(this.c);
+        rect(this.x, this.y, (amt !== undefined) ? ((this.w * amt) / max) : this.input, this.h, (inRound || 0));
+        noFill();
+        if(!this.noStroke) 
+        { 
+            strokeWeight(1);
+            stroke(0, 0, 0, 50); 
+        }
+        rect(this.x, this.y, this.w, this.h, (inRound || 0));
+        noStroke();
+    };
 };
 
 var graphics = {};
@@ -194,56 +289,138 @@ graphics.Fade = function(colorValue)
         }
     };
 };
-var clouds = [];
-clouds.create = function()
+
+graphics.inClouds = [];
+graphics.inClouds.getSpeed = function()
+{
+    var speed = 0;
+    var dir = round(random(-1, 1));
+    if(dir === -1)
+    {
+        speed = -random(0.25, 0.5);
+    }
+    else if(dir === 1)
+    {
+        speed = random(0.25, 0.5);
+    }
+    else if(dir === 0)
+    {
+        speed = 0;
+    }
+    return speed;
+};
+graphics.inClouds.create = function(amt)
 {
     this.length = 0;
-    for(var i = 0; i < levelInfo.width * levelInfo.height / 20000; i++)
+    var n = 0;
+    while(n < amt)
     {
-        this.push([levelInfo.xPos + random(0, levelInfo.width / 5) * 5, levelInfo.yPos + random(0, (height / 2) / 5) * 5, random(40, 100), random(10, 30), random(75, 200), (random(0, 100) > 50) ? 1 * random(0.1, 0.5)  : -1 * random(0.1, 0.5), (random(0, 100) < 60) ? "rect"  : "ellipse"]);
+        var x = round(random(0, width));
+        var y = round(random(130, 250));
+        var speed = this.getSpeed();
+        for(var i = 0; i < round(random(1, 3)); i++)
+        {
+            var w = round(random(30, 70));
+            var h = round(random(10, 25));
+            var offX = (w / round(random(2, 4))) * ((random(0, 100) > 50) ? 1 : -1);
+            var offY = (h / round(random(2, 4))) * ((random(0, 100) > 50) ? 1 : -1);
+            this.push([x + offX, y + offY, w, h, {
+                speed : speed,
+                type : ((random(0, 100) <= 70) ? "rect" : "ellipse"),
+            }]);
+            n++;
+        }
     }
 };
-clouds.draw = function()
+graphics.inClouds.draw = function() 
 {
     for(var i = 0; i < this.length; i++)
     {
-        fill(255, 255, 255, this[i][4]);
-        this[i][0] += this[i][5];
-
-        var edge = width * 0.3;
-        var levelLeft = levelInfo.xPos - edge;
-        var levelRight = levelInfo.xPos + levelInfo.width + edge;
-        if(this[i][6] === "rect")
+        fill(255, 255, 255, 70);
+        this[i][0] += this[i][4].speed;
+        if(this[i][4].type === "rect")
         {
             rect(this[i][0], this[i][1], this[i][2], this[i][3], 5);
-
-            if(this[i][0] + this[i][2] < levelLeft)
+            if(this[i][0] + this[i][2] < 0)
             {
-                this[i][0] = levelRight;
+                this[i][0] = width;
             }
-            else if(this[i][0] > levelRight)
+            if(this[i][0] > width)
             {
-                this[i][0] = levelLeft;
+                this[i][0] = -this[i][2];
             }
         }
-        else if(this[i][6] === "ellipse")
+        else if(this[i][4].type === "ellipse")
         {
             ellipse(this[i][0], this[i][1], this[i][2], this[i][3]);
-
+            
             var radius = this[i][2] / 2;
-            if(this[i][0] + radius < levelLeft)
+            if(this[i][0] + radius < 0)
             {
-                this[i][0] = levelRight + radius;
+                this[i][0] = width + radius;
             }
-            else if(this[i][0] - radius > levelRight)
+            if(this[i][0] - radius > width)
             {
-                this[i][0] = levelLeft - radius;
+                this[i][0] = -radius;
             }
         }
+    }
+};
+graphics.stars = [];
+graphics.stars.create = function(amt)
+{
+    for(var i = 0; i < amt; i++)
+    {
+        this.push([random(0, width), random(0, 115)]);
+    }
+};
+graphics.stars.draw = function() 
+{
+    for(var i = 0; i < this.length; i++)
+    {
+        fill(200, 200, 255);
+        ellipse(this[i][0], this[i][1], 2, 2);
     }
 };
 
 var shapes = {
+    bush : function(x, y, w, h)
+    {
+        for(var i = 0; i < width / 3; i += 70)
+        {
+            pushMatrix();
+            translate(x + i, y);
+            rotate(150);
+            fill(35, 153, 98);
+            ellipse(0, 0, w, h);
+            popMatrix();
+        }
+        for(var i = 0; i < width / 3; i += 70)
+        {
+            pushMatrix();
+            translate(x + 10 + i, y);
+            rotate(150);
+            fill(16, 128, 62);
+            ellipse(0, 0, w - 23, h - 23);
+            popMatrix();
+        }
+    },
+    grass : function(x, y, w, h)
+    {
+        fill(50, 140, 30);
+        var bladeW = w * 0.1;
+        rect(x, y + h, bladeW, -h);
+        rect(x + bladeW, y + h, bladeW, h * -0.4);
+        rect(x + bladeW * 2, y + h, bladeW, h * -0.7);
+        rect(x + bladeW * 3, y + h, bladeW, h * -0.2);
+        rect(x + bladeW * 4, y + h, bladeW, h * -0.5);
+        rect(x + bladeW * 5, y + h, bladeW, h * -0.8);
+        rect(x + bladeW * 6, y + h, bladeW, h * -0.4);
+        rect(x + bladeW * 7, y + h, bladeW, h * -0.9);
+        rect(x + bladeW * 8, y + h, bladeW, h * -0.6);
+        rect(x + bladeW * 9, y + h, bladeW, h * -0.4);
+        rect(x + bladeW * 10, y + h, bladeW, h * -0.7);
+    },
     sun : function(x, y)
     {
         fill(210, 210, 35);
@@ -275,30 +452,127 @@ var shapes = {
     },
 };
 
-
 var backgrounds = {
-    background : "overworld",
+    background : "spaceFromEarth",
     backgrounds : {
-        "overworld" : {
+        "spaceFromEarth" : {
+            primeLoad : function()
+            {
+                graphics.stars.create(round(random(30, 80)));
+                background(255, 255, 255);
+                backgrounds.backgrounds.spaceFromEarth.drawBackground();
+                var spaceFromEarth = get(0, 0, 400, 400);
+                backgrounds.backgrounds.spaceFromEarth.drawBackground = function()
+                {
+                    image(spaceFromEarth, 0, 0);
+                    graphics.inClouds.draw();
+                };
+            },
             load : function()
             {
-                clouds.create();
+                graphics.inClouds.create(round(random(4, 13)));
             },
             drawBackground : function()
             {
-                background(147, 221, 250);
-            },
-            drawForeground : function()
-            {
+                var backColor = color(147 - 30, 221 - 30, 250 - 30);background(red(backColor), green(backColor), blue(backColor));
                 noStroke();
+                
+                //Atmosphere
+                fill(red(backColor) - 10, green(backColor) - 10, blue(backColor) - 10);
+                rect(0, 155, 400, 10);
+                fill(red(backColor) - 30, green(backColor) - 30, blue(backColor) - 30);
+                rect(0, 130, 400, 25);
+                fill(red(backColor) - 80, green(backColor) - 80, blue(backColor) - 80);
+                rect(0, 90, 400, 40);
+                fill(red(backColor) - 130, green(backColor) - 130, blue(backColor) - 130);
+                rect(0, 0, 400, 90, 0);
+                graphics.stars.draw();
+                
+                //Moon
+                fill(220, 222, 124);
                 pushMatrix();
-                translate((cam.focusXPos) * 0.7, (cam.focusYPos) * 0.7);
-                shapes.sun(40, -70);
+                scale(0.3, 0.3);
+                translate(-17, -63);
+                beginShape();
+                vertex(274, 166);
+                bezierVertex(283, 154, 213, 122, 192, 171);
+                bezierVertex(179, 228, 264, 258, 286, 200);
+                bezierVertex(254, 239, 228, 207, 226, 183);
+                bezierVertex(242, 145, 269, 170, 279, 169);
+                endShape();
                 popMatrix();
+                
+                //Mountains
+                fill(13, 93, 204);
+                triangle(343, 308, 213, 421, 299, 239);
+                fill(13, 133, 130);
+                triangle(317, 308, 200, 421, 266, 256);
+                triangle(369, 308, 204, 421, 342, 255);
+                
+                fill(255, 255, 255, 200);
+                triangle(266, 256, 262, 267, 273, 263);
+                triangle(342, 255, 348, 266, 332, 266);
+                triangle(299, 239, 293, 251, 308, 252);
+                
+                //Hills
+                fill(28, 122, 52);
+                ellipse(258, 317, 158, 66);
+                fill(30, 130, 50);
+                ellipse(71, 298, 153, 60);
+                ellipse(15, 338, 114, 58);
+                ellipse(371, 332, 146, 70);
+                
+                //observetory
+                var ox = 129;
+                var oy = 291;
+                fill(130, 130, 130);
                 pushMatrix();
-                translate((levelInfo.width - cam.focusXPos) * 0.1, (levelInfo.height - cam.focusYPos) * 0.01);
-                clouds.draw();
+                translate(ox, oy);
+                scale(1.2, 1.2);
+                rotate(208);
+                fill(23, 71, 161);
+                rect(-2.5, 5, 5, 28);
+                fill(24, 92, 161);
+                rect(-4.5, 16, 10, 10);
                 popMatrix();
+                
+                //Hills and grass
+                fill(23, 71, 161);
+                ellipse(ox, oy, 50, 45);
+                fill(24, 92, 161);
+                ellipse(ox, oy, 33, 33);
+                
+                shapes.bush(60, 335, 149, 70);
+                shapes.bush(270, 344, 122, 70);
+                fill(117, 82, 57);
+                ellipse(200, 360, 155, 83);
+                
+                fill(41, 171, 115);
+                ellipse(77, 353, 162, 67);
+                ellipse(319, 357, 168, 63);
+                
+                shapes.grass(35, 320, 20, 31);
+                shapes.grass(79, 307, 20, 45);
+                shapes.grass(121, 333, 20, 17);
+                
+                shapes.grass(331, 315, 20, 38);
+                shapes.grass(289, 333, 20, 17);
+                
+                //Ground
+                fill(56, 158, 25);
+                rect(0, 350, 400, 100, 10);
+                
+                fill(76, 184, 33);
+                for(var x = 0; x < width; x += 40)
+                {
+                    rect(x, 350, 20, 100, 15);
+                }
+                
+                fill(0, 0, 0, 60);
+                for(var x = 0; x < width; x += 70)
+                {
+                    rect(x, 375, 70, 100, 10);
+                }
             },
         },
     },
@@ -309,11 +583,11 @@ var backgrounds = {
             this.backgrounds[this.background].load();
         }
     },
-    setBackground : function(background)
+    setBackground : function(background1)
     {
-        if(this.backgrounds[background] !== undefined)
+        if(this.backgrounds[background1] !== undefined)
         {
-            this.background = background;
+            this.background = background1;
         }
     },
     drawBackground : function()
@@ -328,6 +602,16 @@ var backgrounds = {
         if(this.backgrounds[this.background].drawForeground !== undefined)
         {
             this.backgrounds[this.background].drawForeground();
+        }
+    },
+    primeLoad : function()
+    {
+        for(var i in this.backgrounds)
+        {
+             if(this.backgrounds[i].primeLoad !== undefined)
+             {
+                  this.backgrounds[i].primeLoad(); 
+             }
         }
     },
 };
@@ -381,190 +665,336 @@ var pixelFuncs = {
 };
 
 var storedImages = {
-    "spaceman" : pixelFuncs.createPixelImage({
+    "suitLeft" : pixelFuncs.createPixelImage({
         width : 30,
         height : 60,
         replace : true,
         pixelSize : 3,
         pixels : [
-            "aabbbbbbaa",
-            "abbccccbba",
-            "abcdccdcba",
-            "abcdccdcba",
-            "abccccccba",
-            "abbccccbba",
-            "aabbbbbbaa",
-            "aaaccccaaa",
-            "aaaceecaaa",
-            "aaecffceaa",
-            "aeaceecaea",
-            "aeaceecaea",
-            "afaccccafa",
-            "aaaccccaaa",
-            "aaaeeeeaaa",
-            "aaaccccaaa",
-            "aaacaacaaa",
-            "aaacaacaaa",
-            "aaacaacaaa",
-            "aaafaafaaa",
+            "  iiiiii  ",
+            "  ibbbbi  ",
+            "  hchcbi  ",
+            "  ccccbi  ",
+            "  ibbbbi  ",
+            "iiibbbbidd",
+            "ibbbbbbbdf",
+            "ibeebbddbi",
+            "ibjebbddbi",
+            "ibeeddbbbi",
+            "fdejdfbbbi",
+            "ffddbbejfd",
+            " lddbbeeff",
+            " libbbjel ",
+            " libbbjel ",
+            " lkgbbbill",
+            "  gkbbbill",
+            "  kg  bi  ",
+            "  dd  dd  ",
+            "  ff  ff  ",
         ],
         pallete : {
-            'a' : "clear",
-            'b' : -16773349,
-            'c' : -15751769,
-            'd' : -2960869,
-            'e' : -16734949,
-            'f' : -3970789,
+            'b' : color(31, 54, 122),
+            'c' : color(0, 0, 0),
+            'd' : color(43, 181, 181),
+            'e' : color(200, 150, 60),
+            'f' : color(43, 132, 181),
+            'g' : color(14, 130, 31),
+            'h' : color(40, 40, 40),
+            'i' : color(31 - 20, 54 - 20, 122 - 20),
+            'j' : color(200 - 30, 150 - 30, 60 - 30),
+            'k' : color(34, 150, 51),
+            'l' : color(51, 51, 51),
         },
     }),
-    "spacemanRight" : pixelFuncs.createPixelImage({
+    "suitLeft2" : pixelFuncs.createPixelImage({
         width : 30,
         height : 60,
         replace : true,
         pixelSize : 3,
         pixels : [
-            "aabbbbbbaa",
-            "abbccccbba",
-            "abccdccdba",
-            "abccdccdba",
-            "abccccccba",
-            "abbccccbba",
-            "aabbbbbbaa",
-            "aaaccccaaa",
-            "aaaceecaaa",
-            "aaecffceaa",
-            "aeaceecaea",
-            "aeaceecaea",
-            "aeaccccafa",
-            "afaccccaaa",
-            "aaaeeeeaaa",
-            "aaaccccaaa",
-            "aaacaacaaa",
-            "aaafaacaaa",
-            "aaaaaacaaa",
-            "aaaaaafaaa",
+            "  iiiiii  ",
+            "  ibbbbi  ",
+            "  hchcbi  ",
+            "  ccccbi  ",
+            "  ibbbbi  ",
+            "iiibbbbidd",
+            "ibbbbbbbdf",
+            "ibeebbddbi",
+            "ibjebbddbi",
+            "ibeeddbbbi",
+            "fdejdfbbbi",
+            "ffddbbejfd",
+            " lddbbeeff",
+            " libbbjel ",
+            " libbbjel ",
+            " lkgbbbill",
+            "  gkbbbill",
+            "  kg  dd  ",
+            "  dd  ff  ",
+            "  ff      ",
         ],
         pallete : {
-            'a' : "clear",
-            'b' : -16773349,
-            'c' : -15751769,
-            'd' : -2960869,
-            'e' : -16734949,
-            'f' : -3970789,
+            'b' : color(31, 54, 122),
+            'c' : color(0, 0, 0),
+            'd' : color(43, 181, 181),
+            'e' : color(200, 150, 60),
+            'f' : color(43, 132, 181),
+            'g' : color(14, 130, 31),
+            'h' : color(40, 40, 40),
+            'i' : color(31 - 20, 54 - 20, 122 - 20),
+            'j' : color(200 - 30, 150 - 30, 60 - 30),
+            'k' : color(34, 150, 51),
+            'l' : color(51, 51, 51),
         },
     }),
-    "spacemanRight2" : pixelFuncs.createPixelImage({
+    "suitLeft3" : pixelFuncs.createPixelImage({
         width : 30,
         height : 60,
         replace : true,
         pixelSize : 3,
         pixels : [
-            "aabbbbbbaa",
-            "abbccccbba",
-            "abccdccdba",
-            "abccdccdba",
-            "abccccccba",
-            "abbccccbba",
-            "aabbbbbbaa",
-            "aaaccccaaa",
-            "aaaceecaaa",
-            "aaecffceaa",
-            "aeaceecaea",
-            "aeaceecaea",
-            "afaccccaea",
-            "aaaccccafa",
-            "aaaeeeeaaa",
-            "aaaccccaaa",
-            "aaacaacaaa",
-            "aaacaafaaa",
-            "aaacaaaaaa",
-            "aaafaaaaaa",
+            "  iiiiii  ",
+            "  ibbbbi  ",
+            "  hchcbi  ",
+            "  ccccbi  ",
+            "  ibbbbi  ",
+            "iiibbbbidd",
+            "ibbbbbbbdf",
+            "ibeebbddbi",
+            "ibjebbddbi",
+            "ibeeddbbbi",
+            "fdejdfbbbi",
+            "ffddbbejfd",
+            " lddbbeeff",
+            " libbbjel ",
+            " libbbjel ",
+            " lkgbbbill",
+            "  gkbbbill",
+            "  dd  bi  ",
+            "  ff  dd  ",
+            "      ff  ",
         ],
         pallete : {
-            'a' : "clear",
-            'b' : -16773349,
-            'c' : -15751769,
-            'd' : -2960869,
-            'e' : -16734949,
-            'f' : -3970789,
+            'b' : color(31, 54, 122),
+            'c' : color(0, 0, 0),
+            'd' : color(43, 181, 181),
+            'e' : color(200, 150, 60),
+            'f' : color(43, 132, 181),
+            'g' : color(14, 130, 31),
+            'h' : color(40, 40, 40),
+            'i' : color(31 - 20, 54 - 20, 122 - 20),
+            'j' : color(200 - 30, 150 - 30, 60 - 30),
+            'k' : color(34, 150, 51),
+            'l' : color(51, 51, 51),
         },
     }),
-    "spacemanLeft" : pixelFuncs.createPixelImage({
+    "suitRight" : pixelFuncs.createPixelImage({
         width : 30,
         height : 60,
         replace : true,
         pixelSize : 3,
         pixels : [
-            "aabbbbbbaa",
-            "abbccccbba",
-            "abdccdccba",
-            "abdccdccba",
-            "abccccccba",
-            "abbccccbba",
-            "aabbbbbbaa",
-            "aaaccccaaa",
-            "aaaceecaaa",
-            "aaecffceaa",
-            "aeaceecaea",
-            "aeaceecaea",
-            "afaccccaea",
-            "aaaccccafa",
-            "aaaeeeeaaa",
-            "aaaccccaaa",
-            "aaacaacaaa",
-            "aaacaafaaa",
-            "aaacaaaaaa",
-            "aaafaaaaaa",
+            "  iiiiii  ",
+            "  ibbbbi  ",
+            "  ibchch  ",
+            "  ibcccc  ",
+            "  ibbbbi  ",
+            "iiibbbbidd",
+            "ibbbbbbbdf",
+            "ibeebbddbi",
+            "ibjebbddbi",
+            "ibeeddbbbi",
+            "ibejdfbbdf",
+            "dfddbbejff",
+            "ffddbbeel ",
+            " libbbjel ",
+            " libbbjel ",
+            "llkgbbbil ",
+            "llgkbbbi  ",
+            "  kg  bi  ",
+            "  dd  dd  ",
+            "  ff  ff  ",
         ],
         pallete : {
-            'a' : "clear",
-            'b' : -16773349,
-            'c' : -15751769,
-            'd' : -2960869,
-            'e' : -16734949,
-            'f' : -3970789,
+            'b' : color(31, 54, 122),
+            'c' : color(0, 0, 0),
+            'd' : color(43, 181, 181),
+            'e' : color(200, 150, 60),
+            'f' : color(43, 132, 181),
+            'g' : color(14, 130, 31),
+            'h' : color(40, 40, 40),
+            'i' : color(31 - 20, 54 - 20, 122 - 20),
+            'j' : color(200 - 30, 150 - 30, 60 - 30),
+            'k' : color(34, 150, 51),
+            'l' : color(51, 51, 51),
         },
     }),
-    "spacemanLeft2" : pixelFuncs.createPixelImage({
+    "suitRight2" : pixelFuncs.createPixelImage({
         width : 30,
         height : 60,
         replace : true,
         pixelSize : 3,
         pixels : [
-            "aabbbbbbaa",
-            "abbccccbba",
-            "abdccdccba",
-            "abdccdccba",
-            "abccccccba",
-            "abbccccbba",
-            "aabbbbbbaa",
-            "aaaccccaaa",
-            "aaaceecaaa",
-            "aaecffceaa",
-            "aeaceecaea",
-            "aeaceecaea",
-            "aeaccccafa",
-            "afaccccaaa",
-            "aaaeeeeaaa",
-            "aaaccccaaa",
-            "aaacaacaaa",
-            "aaafaacaaa",
-            "aaaaaacaaa",
-            "aaaaaafaaa",
+            "  iiiiii  ",
+            "  ibbbbi  ",
+            "  ibchch  ",
+            "  ibcccc  ",
+            "  ibbbbi  ",
+            "iiibbbbidd",
+            "ibbbbbbbdf",
+            "ibeebbddbi",
+            "ibjebbddbi",
+            "ibeeddbbbi",
+            "ibejdfbbdf",
+            "dfddbbejff",
+            "ffddbbeel ",
+            " libbbjel ",
+            " libbbjel ",
+            "llkgbbbil ",
+            "llgkbbbi  ",
+            "  dd  bi  ",
+            "  ff  dd  ",
+            "      ff  ",
         ],
         pallete : {
-            'a' : "clear",
-            'b' : -16773349,
-            'c' : -15751769,
-            'd' : -2960869,
-            'e' : -16734949,
-            'f' : -3970789,
+            'b' : color(31, 54, 122),
+            'c' : color(0, 0, 0),
+            'd' : color(43, 181, 181),
+            'e' : color(200, 150, 60),
+            'f' : color(43, 132, 181),
+            'g' : color(14, 130, 31),
+            'h' : color(40, 40, 40),
+            'i' : color(31 - 20, 54 - 20, 122 - 20),
+            'j' : color(200 - 30, 150 - 30, 60 - 30),
+            'k' : color(34, 150, 51),
+            'l' : color(51, 51, 51),
+        },
+    }),
+    "suitRight3" : pixelFuncs.createPixelImage({
+        width : 30,
+        height : 60,
+        replace : true,
+        pixelSize : 3,
+        pixels : [
+            "  iiiiii  ",
+            "  ibbbbi  ",
+            "  ibchch  ",
+            "  ibcccc  ",
+            "  ibbbbi  ",
+            "iiibbbbidd",
+            "ibbbbbbbdf",
+            "ibeebbddbi",
+            "ibjebbddbi",
+            "ibeeddbbbi",
+            "ibejdfbbdf",
+            "dfddbbejff",
+            "ffddbbeel ",
+            " libbbjel ",
+            " libbbjel ",
+            "llkgbbbil ",
+            "llgkbbbi  ",
+            "  kg  dd  ",
+            "  dd  ff  ",
+            "  ff      ",
+        ],
+        pallete : {
+            'b' : color(31, 54, 122),
+            'c' : color(0, 0, 0),
+            'd' : color(43, 181, 181),
+            'e' : color(200, 150, 60),
+            'f' : color(43, 132, 181),
+            'g' : color(14, 130, 31),
+            'h' : color(40, 40, 40),
+            'i' : color(31 - 20, 54 - 20, 122 - 20),
+            'j' : color(200 - 30, 150 - 30, 60 - 30),
+            'k' : color(34, 150, 51),
+            'l' : color(51, 51, 51),
+        },
+    }),
+    "suit" : pixelFuncs.createPixelImage({
+        width : 30,
+        height : 60,
+        replace : true,
+        pixelSize : 3,
+        pixels : [
+            "  iiiiii  ",
+            "  ibbbbi  ",
+            "  ichchi  ",
+            "  icccci  ",
+            "  ibbbbi  ",
+            "iiibbbbidd",
+            "ibbbbbbbdf",
+            "ibeebbddbi",
+            "ibjebbddbi",
+            "ibeeddbbbi",
+            "ibejdfbbbi",
+            "fdddbbejdf",
+            "ffddbbeeff",
+            " libbbjel",
+            " libbbjel",
+            " lkgbbbil ",
+            "llgkbbbill",
+            "llkgllbill",
+            "  dd  dd  ",
+            "  ff  ff  ",
+        ],
+        pallete : {
+            'b' : color(31, 54, 122),
+            'c' : color(0, 0, 0),
+            'd' : color(43, 181, 181),
+            'e' : color(200, 150, 60),
+            'f' : color(43, 132, 181),
+            'g' : color(14, 130, 31),
+            'h' : color(40, 40, 40),
+            'i' : color(31 - 20, 54 - 20, 122 - 20),
+            'j' : color(200 - 30, 150 - 30, 60 - 30),
+            'k' : color(34, 150, 51),
+            'l' : color(51, 51, 51),
         },
     }),
 };
+
+graphics.infoBarProps = {
+    font : createFont("sans serif"),
+    height : 17,
+};
 var screenUtils = {
     fade : new graphics.Fade(color(0, 0, 0)),
-    //Use this after defining the draw method in a gameObject
+    infoBar : {
+        height : graphics.infoBarProps.height,
+        healthMeter : new Bar(0, 0, 100, graphics.infoBarProps.height - 1, color(34, 190, 51, 70), 10),
+        draw : function()
+        {
+            fill(0, 0, 0, 80);
+            noStroke();
+            rect(0, 0, width, screenUtils.infoBar.height);
+            screenUtils.infoBar.healthMeter.draw();
+            
+            var player = gameObjects.getObject("player").input(0);
+            screenUtils.infoBar.healthMeter.set(player.hp, player.maxHp);
+            
+            textAlign(CENTER, CENTER);
+            fill(0, 0, 0, 100);
+            textFont(graphics.infoBarProps.font);
+            textSize(11);
+            
+            fill(0, 12, 12, 50);
+            rect(1, 0, 70, screenUtils.infoBar.height, 10);
+            fill(0, 0, 0, 160);
+            text("Hp " + abs((player.hp || 0).toFixed(0)) + "/" + player.maxHp, 34, screenUtils.infoBar.height - 8);
+            
+            textAlign(NORMAL, CENTER);
+            fill(0, 12, 12, 150);
+            rect(125, 0, 140, screenUtils.infoBar.height, 10);
+            fill(230, 230, 230, 100);
+            text("Coins " + (player.coins || 0) + "    Score " + (player.score || 0), 130, screenUtils.infoBar.height - 8);
+            
+            fill(0, 12, 12, 150);
+            rect(285, 0, 85, screenUtils.infoBar.height, 10);
+            fill(230, 230, 230, 100);
+            text("Level " + (levelInfo.level || 0), 290, screenUtils.infoBar.height - 8);
+        },
+    },
     needsScreenShot : false,
     takeScreenShot : function()
     {
@@ -574,6 +1004,7 @@ var screenUtils = {
             this.needsScreenShot = false;
         }
     },
+    //Use this after defining the draw method in a gameObject
     letImage : function(object, name, pro)
     {
         object.imageName = name;
@@ -582,16 +1013,16 @@ var screenUtils = {
             return storedImages[this.imageName];
         };
         object.draw = (pro) ? function()
-            {
-                image(this.getImg(), this.xPos, this.yPos, this.width, this.height);
-            }  :
-            function()
-            {
-                image(this.getImg(), this.xPos, this.yPos);
-            };
+        {
+            image(this.getImg(), this.xPos, this.yPos, this.width, this.height);
+        } :
+        function()
+        {
+            image(this.getImg(), this.xPos, this.yPos);
+        };
     },
     //Will not work with transparent objects
-    loadImage : function(object, constImage, name, notRect, customBackColor)
+    loadImage : function(object, constImage, name, notRect, customBackColor, ref)
     {
         //Constant Image is for images that do not change, we store them
         if(constImage && storedImages[name || object.arrayName] !== undefined)
@@ -623,7 +1054,7 @@ var screenUtils = {
         {
             object.setDraw();
         }
-        object.draw();
+        object[ref || "draw"]();
         var img = get(0, 0, object.width, object.height);
         object.xPos = lastXPos;
         object.yPos = lastYPos;
@@ -641,10 +1072,39 @@ var screenUtils = {
         }
         screenUtils.letImage(object, name || object.arrayName);
     },
+    debugMode : function()
+    {
+        if(!game.debugMode)
+        {
+            return;
+        }
+        
+        //Debug menu
+        var player = gameObjects.getObject("player").input(0);
+        fill(0, 0, 0, 200);
+        textAlign(NORMAL, NORMAL);
+        text("xPos " + player.xPos.toFixed(2), 10, 30);
+        text("yPos " + player.yPos.toFixed(2), 10, 44);
+        text("xVel " + player.xVel.toFixed(2), 10, 58);
+        text("yVel " + player.yVel.toFixed(2), 10, 72);
+        text("inAir " + player.inAir, 10, 106);
+        text("hp " + player.hp.toFixed(2), 10, 90);
+        text(game.version, 330, 30);
+        text("sfps " + game.fps + "  afps " + fpsCatcher.actualFps + "  cf " + fpsCatcher.countedFrames + "  s " + second(), 150, 30);
+    },
     update : function()
     {
         this.takeScreenShot();
         this.fade.draw();
+        if(game.gameState === "play" || game.gameState === "pauseMenu")
+        {
+            this.infoBar.draw();
+        }
+        if(game.switchedState && this.fade.full())
+        {
+            game.gameState = game.switchState; 
+            game.switchedState = false;
+        }
     },
 };
 
@@ -765,6 +1225,10 @@ var physics = {
 var observer = {
     collisionTypes : {
         "blank" : {
+            colliding : function() {},
+            solveCollision : function() {},
+        },
+        "pointrect" : {
             colliding : function(point1, rect1)
             {
                 return ((point1.xPos > rect1.xPos && 
@@ -772,10 +1236,6 @@ var observer = {
                         (point1.yPos > rect1.yPos && 
                          point1.yPos < rect1.yPos + rect1.height));   
             },
-            solveCollision : function() {},
-        },
-        "pointrect" : {
-            colliding : function() {},
             solveCollision : function() {},
         },
         "pointpolygon" : {
@@ -870,7 +1330,6 @@ var observer = {
                         var right = slope1.xPos + slope1.width;
                         var w1 = abs(right - circle1.keptPoint.xPos);
                         var h2 = sin(angle) * w1;
-                        
                         if(circle1.keptPoint.xPos < right)
                         {
                             circle1.inAir = false;
@@ -883,7 +1342,6 @@ var observer = {
                     case "rightup" :
                         var w1 = abs(circle1.keptPoint.xPos - slope1.xPos);
                         var h2 = sin(angle) * w1;
-                        
                         if(circle1.keptPoint.xPos > slope1.xPos)
                         {
                             circle1.inAir = false;
@@ -897,7 +1355,6 @@ var observer = {
                         var right = slope1.xPos + slope1.width;
                         var w1 = abs(right - circle1.keptPoint.xPos);
                         var h2 = sin(angle) * w1;
-                        
                         if(circle1.keptPoint.xPos < right)
                         {
                             circle1.yVel = max(0, circle1.yVel);
@@ -909,7 +1366,6 @@ var observer = {
                     case "rightdown" :
                         var w1 = abs(circle1.keptPoint.xPos - slope1.xPos);
                         var h2 = sin(angle) * w1;
-                        
                         if(circle1.keptPoint.xPos > slope1.xPos)
                         {
                             circle1.yVel = max(0, circle1.yVel);
@@ -1019,7 +1475,6 @@ var observer = {
                             {
                                 rect1.yPos = slope1.yPos - rect1.height;
                                 rect1.yVel = min(rect1.yVel, 0);
-                                //rect1.sloped = 3; 
                                 return true;
                             }
                         }
@@ -1054,13 +1509,10 @@ var observer = {
                                         var h2 = sin(angle) * w1;
                                         rect1.yPos = (slope1.yPos + (slope1.height - h2)) - rect1.height;
                                     }
-                                    if(rect1.lastRectCollider.movement === "dynamic" && !rect1.lastRectCollider.touchedRect)
+                                    if(rect1.lastRectCollider !== undefined && rect1.lastRectCollider.movement === "dynamic" && !rect1.lastRectCollider.touchedRect)
                                     {
                                         rect1.xPos += (slope1.slip || 1);
                                     }
-                                    //else {
-                                        //rect1.xVel = min(0, rect1.xVel);
-                                    //}
                                 }
                             }
                             break;
@@ -1080,13 +1532,10 @@ var observer = {
                                         var h2 = sin(angle) * w1;
                                         rect1.yPos = (slope1.yPos + (slope1.height - h2)) - rect1.height;
                                     }
-                                    if(rect1.lastRectCollider.movement === "dynamic" && !rect1.lastRectCollider.touchedRect)
+                                    if(rect1.lastRectCollider !== undefined && rect1.lastRectCollider.movement === "dynamic" && !rect1.lastRectCollider.touchedRect)
                                     {
                                         rect1.xPos -= (slope1.slip || 1);
                                     }
-                                    // else {
-                                    //    //rect1.xVel = max(0, rect1.xVel);
-                                    //}
                                 }
                             } 
                             break;
@@ -1168,10 +1617,8 @@ var observer = {
                     rect1.xPos += inputX;
                     rect1.yPos += inputY;
                     rect1.inAir = (rect1.yPos + rect1.height >= circle1.yPos);
-
                     if(circle1.physics.movement === "dynamic" && circle1.yVel === rect1.yVel && !rect1.touchedRect)
                     {
-                        //rect1.yVel = min(rect1.yVel, -1);
                         circle1.yVel = max(circle1.yVel, 3);
                     }
                     if(rect1.touchedRect)
@@ -1184,7 +1631,6 @@ var observer = {
                         {
                             rect1.xVel = min(0, rect1.xVel);
                         }
-
                         //Reboot the collision
                         if(rect1.lastRectCollider !== undefined)
                         {
@@ -1193,7 +1639,6 @@ var observer = {
                                 observer.collisionTypes.rectrect.solveCollision(rect1, rect1.lastRectCollider);
                             }
                         }
-                        
                         rect1.collidedWithCircle = false;
                         rect1.touchedRect = false;
                     }
@@ -1206,7 +1651,7 @@ var observer = {
                             observer.collisionTypes.rectrect.solveCollision(rect1, rect1.lastSlopeCollider);
                         }
                     }
-                    if(!rect1.inAir) // && circle1.physics.movement === "static")
+                    if(!rect1.inAir)
                     {
                         rect1.yVel = min(rect1.yVel, rect1.maxYVel * (circle1.friction || 0.25));
                     }
@@ -1236,7 +1681,6 @@ var observer = {
                             circle1.yPos -= inputY;
                         }
                     }
-
                     if(circle1.touchedCircle)
                     {
                         if((inputX < 0 && circle1.xVel > 0) ||
@@ -1251,7 +1695,6 @@ var observer = {
                         }
                     }
                     circle1.touchedCircle = false;
-
                     if((circle1.xPos > rect1.xPos && circle1.xPos < rect1.xPos + rect1.width))
                     {
                         circle1.inAir = (circle1.yPos > rect1.yPos);
@@ -1281,6 +1724,10 @@ var observer = {
                 if(rect1.sloped <= 2)
                 {
                     rect1.sloped++;
+                    if(rect1.inAir)
+                    {
+                        rect1.yVel = min(rect1.yVel, 0);
+                    }
                     return;
                 }
                 //Middle position method (best)
@@ -1293,7 +1740,6 @@ var observer = {
                 var xAdjust = yAdjust;
                 var inY = (rect1.yPos + rect1.height);
                 var inY2 = (rect2.yPos + rect2.height);
-
                 var yAdjustRect1Height = rect1.height * yAdjust;
 
                 //Long because it fixes inaccurate top / bottom collisions
@@ -1303,7 +1749,6 @@ var observer = {
 
                 var pushX = ((rect1.middleXPos) - rect2.middleXPos);
                 var pushY = ((rect1.middleYPos + addY) - rect2.middleYPos);
-
                 var rect2Moveable = (!rect2.physics.independent && rect2.physics.movement === "dynamic");
 
                 var fail = true;
@@ -1324,6 +1769,11 @@ var observer = {
                             if(!down)
                             {
                                 sUp = (rect1.yPos + rect1.height <= rect2.yPos + abs(rect1.yVel));
+                                
+                                if(rect2.physics.movement === "static" && rect1.yVel < 0)
+                                {
+                                     sUp = false;
+                                }   
                             }
                             if(!up)
                             {
@@ -1382,14 +1832,9 @@ var observer = {
                             {
                                 rect1.yPos = rect2.yPos - rect1.height;
                             }
-                            //else if(rect2Moveable)
-                            //{
-                            //    //rect2.yPos = rect1.yPos + rect1.height;
-                            //}
                         }
                     }
                 }
-
                 if(((abs(pushX) > abs(pushY) || (fail || rect1.collidedWithCircle))))
                 {
                     var yAdjustRect2Height = rect2.height * yAdjust;
@@ -1413,12 +1858,10 @@ var observer = {
                                 sLeft = (rect1.xPos + rect1.width <= rect2.xPos + abs(rect1.xVel) && rect1.xVel > 0);
                             }
                         }
-                        if(pushX > 0 && right && sRight) // && rect1.xVel < 0)
+                        if(pushX > 0 && right && sRight)
                         {
-                            if(rect2Moveable) // && rect1.xVel < 0)
+                            if(rect2Moveable)
                             {
-                                //rect2.xVel -= abs(rect1.xVel);
-                                //rect1.xVel += abs(rect2.xVel);
                                 rect2.xVel = min(rect2.xVel, -rect1.maxXVel);
                                 rect1.xVel = max(rect1.xVel, 0);
                             } else {
@@ -1426,12 +1869,10 @@ var observer = {
                             }
                             rect1.xPos = rect2.xPos + rect2.width;
                         }
-                        if(pushX < 0 && left && sLeft) // && rect1.xVel > 0)
+                        if(pushX < 0 && left && sLeft)
                         {
-                            if(rect2Moveable) // && rect1.xVel > 0)
+                            if(rect2Moveable)
                             {
-                                //rect2.xVel += abs(rect1.xVel);
-                                //rect1.xVel -= abs(rect2.xVel);
                                 rect2.xVel = max(rect2.xVel, rect1.maxXVel);
                                 rect1.xVel = min(rect1.xVel, 0);
                             } else {
@@ -1520,7 +1961,7 @@ var Camera = function(xPos, yPos, width, height)
         row : 0,
     };
 
-    this.speed = 0.2;
+    this.speed = 0.15;//0.2
 
     this.getObject = function()
     {
@@ -1834,9 +2275,9 @@ gameObjects.applyCollision = function(objectA)
 {
     if(objectA.physics.movement === "static")
     {
-        return;
+        return; //We don't want to process anything that doesn't move
     }
-
+    
     var upperLeft = cameraGrid.getPlace(objectA.boundingBox.xPos, objectA.boundingBox.yPos);
     var lowerRight = cameraGrid.getPlace(objectA.boundingBox.xPos + objectA.boundingBox.width, objectA.boundingBox.yPos + objectA.boundingBox.height);
 
@@ -1848,23 +2289,22 @@ gameObjects.applyCollision = function(objectA)
 
             for(var i in cell)
             {
-                //If object is going to be tested with itself skip this loop
+                //If an object is going to be tested with itself skip the loop
                 if(objectA.arrayName === cell[i].arrayName && objectA.index === cell[i].index)
                 {
                     continue;
                 }
 
+
                 var objectB = this.getObject(cell[i].arrayName).input(cell[i].index);
 
+                //Test boundingBoxes
                 if(!observer.boundingBoxesColliding(objectA.boundingBox, objectB.boundingBox))
                 {
                     continue;
                 }
 
                 var colliding = true;
-                /*(objectA.physics.shape !== "rect" || objectB.physics.shape !== "rect" ||
-                ((objectA.physics.shape === "rect" && objectA.customBoundingBox) || 
-                objectB.physics.shape === "rect" && objectB.customBoundingBox)))*/
                 if(!(objectA.physics.shape === "rect" && objectB.physics.shape === "rect")) //Assuming rects fill their boundingBox
                 {
                     colliding = observer.colliding(objectA, objectB);
@@ -1872,20 +2312,6 @@ gameObjects.applyCollision = function(objectA)
 
                 if(colliding)
                 {
-                    if(objectA.onHit !== undefined)
-                    {
-                        if(objectA.onHit(objectB))
-                        {
-                            continue;
-                        }
-                    }
-                    if(objectB.onHit !== undefined)
-                    {
-                        if(objectB.onHit(objectA))
-                        {
-                            continue;
-                        }
-                    }
                     if(objectA.physics.solidObject && objectB.physics.solidObject)
                     {
                         observer.solveCollision(objectA, objectB);
@@ -1912,10 +2338,10 @@ gameObjects.apply = function()
         {
             var cell = cameraGrid[col][row];
             for(var i in cell)
-            {
+            {  
                 var array = this.getObject(cell[i].arrayName);
                 var object = array.input(cell[i].index);
-                array.applyObject(cell[i].index);
+                array.applyObject(cell[i].index); //Needed for moving objects around
 
                 /*Keep the cell up to date
                 Note : use this before referencing a cell*/
@@ -1934,7 +2360,8 @@ gameObjects.apply = function()
                     gameObjects.applyCollision(object);
                     object.draw();
                 }
-
+                
+                //Signify that we've used the object for this loop
                 usedObjects[object.arrayName + object.index] = true;
             }
         }
@@ -2069,6 +2496,7 @@ var DynamicObject = function()
             this.yVel = 0;
         }
         this.inAir = true;
+        this.inLiquid = false;
         this.yVel += this.gravity;
         this.yVel = constrain(this.yVel, -this.maxYVel, this.maxYVel);
         this.yPos += this.yVel;
@@ -2165,7 +2593,233 @@ var Slope = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("slope", createArray(Slope));
 
-var Lava = function(xPos, yPos, width, height, colorValue)
+var OneWay = function(xPos, yPos, width, height, colorValue, direction, inHeritance, dynamic)
+{
+    if(!dynamic)
+    {
+        Rect.call(this, xPos, yPos, width, height);
+    } else {
+        DynamicRect.call(this, xPos, yPos, width, height);
+    }
+
+    this.color = colorValue;
+    this.direction = direction;
+    this.physics.sides = {};
+
+    switch(this.direction)
+    {
+        case "left" :
+            this.physics.sides.left = true;
+            break;
+
+        case "right" :
+            this.physics.sides.right = true;
+            break;
+
+        case "up" :
+            this.physics.sides.up = true;
+            break;
+
+        case "down" :
+            this.physics.sides.down = true;
+            break;
+    }
+
+    this.lastDraw = this.draw;
+    this.draw = function()
+    {
+        noStroke();
+        fill(this.color);
+        rect(this.xPos, this.yPos, this.width, this.height);
+
+        var symbol = "L";
+        var textXPos = this.width * 0.2;
+
+        pushMatrix();
+        translate(this.xPos, this.yPos);
+        switch(this.direction)
+        {
+            case "right" :
+                translate(this.width, this.height);
+                rotate(180);
+                break;
+
+            case "up" :
+                translate(this.width, 0);
+                rotate(90);
+                break;
+
+            case "down" :
+                translate(0, this.height);
+                rotate(270);
+                break;
+        }
+        fill(0, 0, 0, 100);
+        textAlign(CENTER, CENTER);
+        textSize(20 * this.width / 40);
+        fill(0, 0, 0, 100);
+        rect(this.width * 0.0, 0, this.width * 0.1, this.height);
+        rect(this.width * 0.3, 0, this.width * 0.1, this.height);
+        for(var i = 0; i < floor(this.height / 10); i++)
+        {
+            text(symbol, 0 + textXPos, 0 + this.height * 0.10 + 10 * i);
+        }
+        textAlign(NORMAL, NORMAL);
+        popMatrix();
+    };
+
+    if(!inHeritance)
+    {
+        screenUtils.loadImage(this, true, "oneWay" + this.direction);
+    }
+};
+gameObjects.addObject("oneWay", createArray(OneWay));
+
+var FallingBlock = function(xPos, yPos, width, height, colorValue)
+{
+    Rect.call(this, xPos, yPos, width, height);
+    this.color = colorValue || color(0, 0, 0, 70);
+    
+    this.draw = function()
+    {
+        fill(this.color);
+        rect(this.xPos, this.yPos, this.width, this.height);
+        rect(this.xPos + this.width * 0.15, this.yPos + this.height * 0.15, this.width * 0.7, this.height * 0.7);
+    };
+};
+gameObjects.addObject("fallingBlock", createArray(FallingBlock));
+
+var MovingPlatform = function(xPos, yPos, width, height, colorValue, direction, fixed, noRender)
+{
+    OneWay.call(this, xPos, yPos, width, height, colorValue, direction, true, !fixed);
+    this.physics.independent = true;
+    this.updateVel = function() {};
+    this.physics.sides = {
+        up : true,
+    };
+
+    this.physics.movement = (fixed) ? "static" : "dynamic"; 
+
+    this.lastUpdate = this.update;
+    this.gravity = 0;
+
+    this.xSpeed = 0;
+    this.xVel = this.xSpeed;
+    this.lastXVel = this.xVel;
+
+    this.ySpeed = 0;
+    this.yVel = this.ySpeed;
+    this.lastYVel = this.yVel;
+
+    this.lastYPos = this.yPos;
+    this.lastXPos = this.xPos;
+
+    this.draw = function()
+    {
+        fill(this.color);
+        rect(this.xPos, this.yPos, this.width, this.height);
+        fill(0, 0, 0, 50);
+        triangle(this.xPos, this.yPos, this.xPos + this.width, this.yPos, this.xPos, this.yPos + this.height);
+    };
+    
+    screenUtils.loadImage(this, true, "movingPlatform");
+        
+    this.update = (this.physics.movement === "dynamic") ? function()
+    {
+        if(this.xVel === 0 && this.xSpeed !== 0)
+        {
+            this.xVel = ((random(0, 100) > 50) ? -this.xSpeed  : this.xSpeed);
+        }
+
+        if(this.xVel < 0)
+        {
+            this.xVel = -this.xSpeed;
+        }
+        else if(this.xVel > 0)
+        {
+            this.xVel = this.xSpeed;
+        }
+        if(this.xPos <= levelInfo.xPos)
+        {
+            this.xVel = this.xSpeed;
+        }
+        else if(this.xPos >= levelInfo.xPos + levelInfo.width - this.width)
+        {
+            this.xVel = -this.xSpeed;
+        }
+        this.xPos += this.xVel;
+
+        if(this.yVel === 0 && this.ySpeed !== 0)
+        {
+            this.yVel = ((random(0, 100) > 50) ? -this.ySpeed  : this.ySpeed);
+        }
+        if(this.yVel < 0)
+        {
+            this.yVel = -this.ySpeed;
+        }
+        else if(this.yVel > 0)
+        {
+            this.yVel = this.ySpeed;
+        }
+        if(this.yPos <= levelInfo.yPos)
+        {
+            this.yVel = this.ySpeed;
+        }
+        else if(this.yPos >= levelInfo.yPos + levelInfo.height - this.height)
+        {
+            this.yVel = -this.ySpeed;
+        }
+        this.yPos += this.yVel;
+
+        this.lastUpdate();
+        this.lastYPos = this.yPos;
+        this.lastXPos = this.xPos;
+    } : this.update;
+
+    this.onCollide = (this.physics.movement === "dynamic") ? function(object)
+    {
+        if(object.type === "block" && object.physics.solidObject && object.arrayName !== "crate")
+        {
+            this.xVel = ((this.xPos > object.xPos) ? this.xSpeed  : -this.xSpeed);
+            this.yVel = ((this.yPos > object.yPos) ? this.ySpeed  : -this.ySpeed);
+        }
+        else if(object.physics.movement === "dynamic" || object.arrayName === "crate")
+        {
+            var condition = false;
+            switch(this.direction)
+            {
+                case "up" :
+                    condition = (object.yPos + object.height <= this.yPos + abs(object.yVel || 0) && object.yVel >= 0);
+                    break;
+
+                case "down" :
+                    condition = (object.yPos - abs(object.yVel || 0) <= this.yPos + this.height && object.yVel <= 0);
+                    break;
+            }
+            if(condition)
+            {
+                if(this.xVel !== 0 && abs(object.xVel) < abs(this.xVel) && this.direction !== "down")
+                {
+                    object.xVel = this.xVel;
+                }
+                if(this.yVel !== 0 && abs(object.yVel) < abs(this.yVel) && this.direction !== "down")
+                {
+                    object.yVel = this.yVel;
+                }
+            }
+            if(this.direction === "down")
+            {
+                object.yVel = max(0, object.yVel);
+                object.inAir = true;
+            }
+            this.xPos = this.lastXPos;
+            this.yPos = this.lastYPos;
+        }
+    } : this.onCollide;
+};
+gameObjects.addObject("movingPlatform", createArray(MovingPlatform));
+
+var Lava = function(xPos, yPos, width, height, colorValue, damage)
 {
     Rect.call(this, xPos, yPos, width, height);
     this.color = colorValue || color(175, 30, 40); //color(170, 70, 80);
@@ -2219,9 +2873,10 @@ var Lava = function(xPos, yPos, width, height, colorValue)
         this.drawGrid();
     };
 
-    screenUtils.loadImage(this, true, "lava" + round(random(0, 1000)));
+    this.num = round(random(0, 1000));
+    screenUtils.loadImage(this, true, "lava" + this.num);
 
-    this.damage = 0.1;
+    this.damage = damage || 0.075;
     this.onCollide = function(object)
     {
         if(object.type === "lifeform")
@@ -2231,6 +2886,48 @@ var Lava = function(xPos, yPos, width, height, colorValue)
     };
 };
 gameObjects.addObject("lava", createArray(Lava));
+
+var MovingLava = function(xPos, yPos, width, height, colorValue, damage)
+{
+    Lava.call(this, xPos, yPos, width, height, colorValue);
+    MovingPlatform.call(this, xPos, yPos, width, height, colorValue, "left", false);
+    this.lastOnCollide = this.onCollide;
+    this.imageName = "lava" + this.num;
+    
+    this.physics.solidObject = true;
+
+    this.damage = damage || 0.05;
+    this.onCollide = function(object)
+    {
+        this.lastOnCollide(object);
+        if(object.type === "lifeform")
+        {
+            object.hp -= this.damage;
+        }
+    };
+};
+gameObjects.addObject("movingLava", createArray(MovingLava));
+
+var Water = function(xPos, yPos, width, height, colorValue)
+{
+    Rect.call(this, xPos, yPos, width, height, colorValue); 
+    this.color = colorValue || color(40, 103, 181, 150);
+    this.physics.solidObject = false;
+    
+    this.thickness = 1.405;
+    
+    this.onCollide = function(object)
+    {
+        if(object.physics.movement === "dynamic")
+        {
+            object.inAir = false;
+            object.inLiquid = true;
+            object.yVel = object.yVel / this.thickness;
+            object.xVel = object.xVel / this.thickness;
+        }
+    };
+};
+gameObjects.addObject("water", createArray(Water));
 
 var Crate = function(xPos, yPos, width, height, colorValue)
 {
@@ -2256,101 +2953,47 @@ var Crate = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("crate", createArray(Crate));
 
-var Sign = function(xPos, yPos, width, height, colorValue, message, textColor, fontName)
+var Coin = function(xPos, yPos, diameter, colorValue, amt)
 {
-    Rect.call(this, xPos, yPos, width, height);
-    this.color = colorValue || color(200, 150, 70);
-    this.message = message || "This is a sign";
-    this.textColor = textColor;
+    Circle.call(this, xPos, yPos, diameter);
+    this.color = colorValue || color(184, 194, 75, 150);
+    this.amt = amt || 1;
+    this.score = this.amt * 100;
     this.physics.solidObject = false;
-
-    this.halfWidth = this.width / 2;
-    this.halfHeight = this.height / 2;
-    this.fontName = fontName;
-
-    this.draw = function()
-    {
-        fill(this.color);
-        rect(this.xPos + this.width * 0.4, this.yPos, this.width * 0.2, this.height);
-        rect(this.xPos, this.yPos, this.width, this.height * 0.6);
-        fill(0, 0, 0, 50);
-        rect(this.xPos + this.width * 0.1, this.yPos + this.height * 0.1, this.width * 0.8, this.height * 0.4);
-
-        stroke(0, 0, 0, 50);
-        strokeWeight(2);
-        line(this.xPos + this.width * 0.25, this.yPos + this.width * 0.25, this.xPos + this.width * 0.7, this.yPos + this.width * 0.25);
-        line(this.xPos + this.width * 0.25, this.yPos + this.width * 0.35, this.xPos + this.width * 0.7, this.yPos + this.width * 0.35);
-        noStroke();
-    };
-    screenUtils.loadImage(this, true, "sign", true);
-
-    this.load = function()
-    {
-        this.textSize1 = (this.textSize || 10);
-        this.startX = this.xPos + this.halfWidth + (this.adjustX || 0);
-        this.startY = (this.yPos - this.halfHeight) + (this.adjustY || 0);
-        this.split = ("").split(this.message).length;
-        this.messageHeight = this.adjustH || split * (this.textSize1 * 2.6);
-        this.messageWidth = this.adjustW || (this.message.length) * (this.textSize1 / 1.6);
-        this.messageWidth2 = this.messageWidth * 0.9;
-        this.messageHeight2 = this.messageHeight * 0.8;
-        this.textRectX = this.startX - this.messageWidth / 2;
-        this.textRectY = this.startY - this.messageHeight / 2;
-        this.textRectX2 = this.startX - this.messageWidth2 / 2;
-        this.textRectY2 = this.startY - this.messageHeight2 / 2;
-
-        if(this.fontName !== undefined)
-        {
-            //Note  : There used to be a try catch block here but I removed it because it stalls the program
-            this.font = createFont(this.fontName);
-            this.fontName = undefined;
-        }
-    };
-
-    this.drawMessage = function()
-    {
-        textAlign(CENTER, CENTER);
-        if(this.font !== undefined)
-        {
-            textFont(this.font);
-        }
-        textSize(this.textSize1);
-        noStroke();
-        fill(this.color);
-        rect(this.textRectX, this.textRectY, this.messageWidth, this.messageHeight);
-        fill(0, 0, 0, 50);
-        rect(this.textRectX2, this.textRectY2, this.messageWidth2, this.messageHeight2);
-        fill(this.textColor || 0);
-        text(this.message, this.startX, this.startY);
-        textAlign(NORMAL, NORMAL);
-    };
-
+    
     this.onCollide = function(object)
     {
-        if(object.type === "lifeform")
+        if(object.arrayName === "player")
         {
-            this.active = true;
-            if(keys[80])
-            {
-                println(this.message);
-            }
+            object.coins += this.amt;
+            object.score += this.score;
+            this.remove(); //Don't forget to delete the coin!
+        }
+    };
+}
+gameObjects.addObject("coin", createArray(Coin));
+
+var HpCoin = function(xPos, yPos, diameter, colorValue, amt)
+{
+    Circle.call(this, xPos, yPos, diameter);
+    this.color = colorValue || color(75, 194, 164 - 50, 200);
+    
+    this.amt = amt || 1;
+    this.score = this.amt * 100;
+    this.physics.solidObject = false;
+    
+    this.onCollide = function(object)
+    {
+        if(object.arrayName === "player")
+        {
+            object.hp += this.amt;
+            object.hp = min(object.hp, object.maxHp);
+            object.score += this.score;
+            this.remove(); //Don't forget to delete the hpCoin!
         }
     };
 };
-gameObjects.addObject("sign", createArray(Sign));
-var signs = gameObjects.getObject("sign");
-signs.drawMessage = function()
-{
-    for(var i = 0; i < signs.length; i++)
-    {
-        if(signs[i].active)
-        {
-            signs[i].drawMessage();
-            signs[i].active = false;
-            break;
-        }
-    }
-};
+gameObjects.addObject("hpCoin", createArray(HpCoin));
 
 var Ring = function(xPos, yPos, diameter, colorValue)
 {
@@ -2434,6 +3077,14 @@ var Dirt = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("dirt", createArray(Dirt));
 
+var Block = function(xPos, yPos, width, height, colorValue)
+{
+    this.noGrass = true;
+    this.arrayName = "block";
+    Ground.call(this, xPos, yPos, width, height, colorValue);
+};
+gameObjects.addObject("block", createArray(Block));
+
 var Spring = function(xPos, yPos, width, height, colorValue)
 {
     Rect.call(this, xPos, yPos, width, height);
@@ -2477,11 +3128,113 @@ var Spring = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("spring", createArray(Spring));
 
+var Sign = function(xPos, yPos, width, height, colorValue, message, textColor, fontName)
+{
+    Rect.call(this, xPos, yPos, width, height);
+    this.color = colorValue || color(200, 150, 70);
+    this.message = message || "This is a sign";
+    this.textColor = textColor;
+    this.physics.solidObject = false;
+
+    this.halfWidth = this.width / 2;
+    this.halfHeight = this.height / 2;
+    this.fontName = fontName;
+
+    this.draw = function()
+    {
+        fill(this.color);
+        rect(this.xPos + this.width * 0.4, this.yPos, this.width * 0.2, this.height);
+        rect(this.xPos, this.yPos, this.width, this.height * 0.6);
+        fill(0, 0, 0, 50);
+        rect(this.xPos + this.width * 0.1, this.yPos + this.height * 0.1, this.width * 0.8, this.height * 0.4);
+
+        stroke(0, 0, 0, 50);
+        strokeWeight(2);
+        line(this.xPos + this.width * 0.25, this.yPos + this.width * 0.25, this.xPos + this.width * 0.7, this.yPos + this.width * 0.25);
+        line(this.xPos + this.width * 0.25, this.yPos + this.width * 0.35, this.xPos + this.width * 0.7, this.yPos + this.width * 0.35);
+        noStroke();
+    };
+    screenUtils.loadImage(this, true, "sign" + this.color, true);
+    
+    this.lastDraw = this.draw;
+    this.draw = function()
+    {
+        this.lastDraw();     
+        if(this.active)
+        {
+            this.drawMessage();
+        }
+        this.active = false;
+    };
+    
+    this.load = function()
+    {
+        this.textSize1 = (this.textSize || 10);
+        this.startX = this.xPos + this.halfWidth + (this.adjustX || 0);
+        this.startY = (this.yPos - this.halfHeight) + (this.adjustY || 0);
+        this.split = ("").split(this.message).length;
+        this.messageHeight = this.adjustH || split * (this.textSize1 * 2.6);
+        this.messageWidth = this.adjustW || (this.message.length) * (this.textSize1 / 1.6);
+        this.messageWidth2 = this.messageWidth * 0.9;
+        this.messageHeight2 = this.messageHeight * 0.8;
+        this.textRectX = this.startX - this.messageWidth / 2;
+        this.textRectY = this.startY - this.messageHeight / 2;
+        this.textRectX2 = this.startX - this.messageWidth2 / 2;
+        this.textRectY2 = this.startY - this.messageHeight2 / 2;
+
+        if(this.fontName !== undefined)
+        {
+            //Note  : There used to be a try catch block here but I removed it because it stalls the program
+            this.font = createFont(this.fontName);
+            this.fontName = undefined;
+        }
+    };
+
+    this.sleep = 0;
+    this.drawMessage = function()
+    {
+        this.sleep++;
+        //Wait a sec to render the sign's message to reduce lag
+        if(this.sleep < 5)
+        {
+            return;  
+        }
+        
+        textAlign(CENTER, CENTER);
+        if(this.font !== undefined)
+        {
+            textFont(this.font);
+        }
+        textSize(this.textSize1);
+        noStroke();
+        fill(this.color);
+        rect(this.textRectX, this.textRectY, this.messageWidth, this.messageHeight);
+        fill(0, 0, 0, 50);
+        rect(this.textRectX2, this.textRectY2, this.messageWidth2, this.messageHeight2);
+        fill(this.textColor || 0);
+        text(this.message, this.startX, this.startY);
+        textAlign(NORMAL, NORMAL);
+    };
+
+    this.onCollide = function(object)
+    {
+        if(object.type === "lifeform")
+        {
+            this.active = true;
+            if(keys[84])
+            {
+                println(this.message);
+            }
+        }
+    };
+};
+gameObjects.addObject("sign", createArray(Sign));
+
 var Door = function(xPos, yPos, width, height, colorValue)
 {
     Rect.call(this, xPos, yPos, width, height);
     this.physics.solidObject = false;
-    this.color = colorValue || color(76, 140, 76);
+    this.color = colorValue || color(58 - 30, 175 - 30, 67 - 30);//color(56, 140, 56);//color(76, 140, 76);
     this.goto = {};
 
     this.draw = function()
@@ -2512,6 +3265,10 @@ var Door = function(xPos, yPos, width, height, colorValue)
             fill(0, 0, 0, 120);
             rect(this.xPos, this.yPos, this.width, this.height);
         }
+        fill(0, 0, 0, 30);
+        textAlign(CENTER, CENTER);
+        textSize(30);
+        text(this.symbol, this.xPos + this.width * 0.5, this.yPos + this.height * 0.4);
     };
 
     this.onCollide = function(object)
@@ -2555,7 +3312,22 @@ var Key = function(xPos, yPos, width, height, colorValue)
     {
         shapes.key(this.xPos, this.yPos, this.width, this.height);
     };
-
+    
+    screenUtils.loadImage(this, true, "key", true);
+    
+    this.lastDraw = this.draw;
+    this.draw = function()
+    {
+        this.lastDraw();
+        
+        fill(0, 0, 0, 100);
+        rect(this.xPos - this.width * 1.6, this.yPos - this.height * 0.65, this.width * 4.3, this.height * 0.5, 5);
+        fill(20, 200, 200, 150);
+        textAlign(CENTER, CENTER);
+        textSize(11);
+        text("Key " + this.goto.level + " " + this.goto.symbol, this.xPos + this.width * 0.4, this.yPos - this.height * 0.4);
+    };
+    
     this.onCollide = function(object)
     {
         if(object.collectItem !== undefined && object.collectItem())
@@ -2581,18 +3353,49 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue)
 
     this.xDiv = this.width * 0.2;
     this.xOff = this.width * 0.13;
-    this.flagX = this.xPos + this.xOff + this.xDiv;
-    this.flagRightX = this.xPos + this.width * 0.7 + this.xDiv;
+    //this.flagX = this.xPos + this.xOff + this.xDiv;
+    //this.flagRightX = this.xPos + this.width * 0.7 + this.xDiv;
+    this.flagX2 = this.xOff + this.xDiv;
+    this.flagRightX2 = this.width * 0.7 + this.xDiv;
     this.midY = this.yPos + this.height / 4;
     this.bottomY = this.yPos + this.height / 2;
+    
+    this.loadImg = function(colorValue)
+    {
+        var img = createGraphics(0, 0, P2D);
+        img.noStroke();
+        img.beginDraw();
+        img.background(0, 0, 0, 0);
+        img.fill(colorValue);
+        img.triangle(this.flagX2, 0, this.flagX2, this.height / 2, this.flagRightX2, this.height / 4);
+        img.fill(0, 0, 0, 50);
+        img.rect(this.xDiv, 0, this.xOff, this.height);
+        img.endDraw();
+        return img;
+    };
+    
     this.draw = function()
     {
-        fill(this.color);
-        triangle(this.flagX, this.yPos, this.flagX, this.bottomY, this.flagRightX, this.midY);
-        fill(0, 0, 0, 50);
-        rect(this.xPos + this.xDiv, this.yPos, this.xOff, this.height);
+        if(storedImages.redFlag === undefined)
+        {
+            storedImages.redFlag = this.loadImg(color(200, 0, 0));
+        }
+        if(storedImages.flag === undefined)
+        {
+            storedImages.flag = this.loadImg(this.color);
+        }
+        
+        this.draw = function()
+        {
+           if(this.color !== color(200, 0, 0))
+           {
+               image(storedImages.flag, this.xPos, this.yPos);
+           }else{
+               image(storedImages.redFlag, this.xPos, this.yPos);
+           }
+        };
     };
-
+    
     this.setObjectProps = function(object)
     {
         object.save = true;
@@ -2611,221 +3414,12 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("checkPoint", createArray(CheckPoint));
 
-var OneWay = function(xPos, yPos, width, height, colorValue, direction, inHeritance, dynamic)
-{
-    if(!dynamic)
-    {
-        Rect.call(this, xPos, yPos, width, height);
-    } else {
-        DynamicRect.call(this, xPos, yPos, width, height);
-    }
-
-    this.color = colorValue;
-    this.direction = direction;
-    this.physics.sides = {};
-
-    switch(this.direction)
-    {
-        case "left" :
-            this.physics.sides.left = true;
-            break;
-
-        case "right" :
-            this.physics.sides.right = true;
-            break;
-
-        case "up" :
-            this.physics.sides.up = true;
-            break;
-
-        case "down" :
-            this.physics.sides.down = true;
-            break;
-    }
-
-    this.lastDraw = this.draw;
-    this.draw = function()
-    {
-        noStroke();
-        fill(this.color);
-        rect(this.xPos, this.yPos, this.width, this.height);
-
-        var symbol = "L";
-        var textXPos = this.width * 0.2;
-
-        pushMatrix();
-        translate(this.xPos, this.yPos);
-        switch(this.direction)
-        {
-            case "right" :
-                translate(this.width, this.height);
-                rotate(180);
-                break;
-
-            case "up" :
-                translate(this.width, 0);
-                rotate(90);
-                break;
-
-            case "down" :
-                translate(0, this.height);
-                rotate(270);
-                break;
-        }
-        fill(0, 0, 0, 100);
-        textAlign(CENTER, CENTER);
-        textSize(20 * this.width / 40);
-        fill(0, 0, 0, 100);
-        rect(this.width * 0.0, 0, this.width * 0.1, this.height);
-        rect(this.width * 0.3, 0, this.width * 0.1, this.height);
-        for(var i = 0; i < floor(this.height / 10); i++)
-        {
-            text(symbol, 0 + textXPos, 0 + this.height * 0.10 + 10 * i);
-        }
-        textAlign(NORMAL, NORMAL);
-        popMatrix();
-    };
-
-    if(!inHeritance)
-    {
-        screenUtils.loadImage(this, true, "oneWay" + this.direction);
-    }
-};
-gameObjects.addObject("oneWay", createArray(OneWay));
-
-var MovingPlatform = function(xPos, yPos, width, height, colorValue, direction)
-{
-    OneWay.call(this, xPos, yPos, width, height, colorValue, direction, true, true);
-    this.physics.independent = true;
-    this.updateVel = function() {};
-    this.physics.sides = {
-        up : true,
-    };
-
-    this.lastUpdate = this.update;
-    this.gravity = 0;
-
-    this.xSpeed = 0;
-    this.xVel = this.xSpeed;
-    this.lastXVel = this.xSpeed;
-
-    this.ySpeed = 0;
-    this.yVel = this.ySpeed;
-    this.lastYVel = this.ySpeed;
-
-    this.lastYPos = this.yPos;
-    this.lastXPos = this.xPos;
-
-    this.draw = function()
-    {
-        fill(this.color);
-        rect(this.xPos, this.yPos, this.width, this.height);
-        fill(0, 0, 0, 50);
-        triangle(this.xPos, this.yPos, this.xPos + this.width, this.yPos, this.xPos, this.yPos + this.height);
-    };
-
-    this.update = function()
-    {
-        if(this.xVel === 0 && this.xSpeed !== 0)
-        {
-            this.xVel = ((random(0, 100) > 50) ? -this.xSpeed  : this.xSpeed);
-        }
-
-        if(this.xVel < 0)
-        {
-            this.xVel = -this.xSpeed;
-        }
-        else if(this.xVel > 0)
-        {
-            this.xVel = this.xSpeed;
-        }
-        if(this.xPos <= levelInfo.xPos)
-        {
-            this.xVel = this.xSpeed;
-        }
-        else if(this.xPos >= levelInfo.xPos + levelInfo.width - this.width)
-        {
-            this.xVel = -this.xSpeed;
-        }
-        this.xPos += this.xVel;
-
-        if(this.yVel === 0 && this.ySpeed !== 0)
-        {
-            this.yVel = ((random(0, 100) > 50) ? -this.ySpeed  : this.ySpeed);
-        }
-        if(this.yVel < 0)
-        {
-            this.yVel = -this.ySpeed;
-        }
-        else if(this.yVel > 0)
-        {
-            this.yVel = this.ySpeed;
-        }
-        if(this.yPos <= levelInfo.yPos)
-        {
-            this.yVel = this.ySpeed;
-        }
-        else if(this.yPos >= levelInfo.yPos + levelInfo.height - this.height)
-        {
-            this.yVel = -this.ySpeed;
-        }
-        this.yPos += this.yVel;
-
-        this.lastUpdate();
-        this.lastYPos = this.yPos;
-        this.lastXPos = this.xPos;
-    };
-
-    this.onCollide = function(object)
-    {
-        if(object.type === "block" && object.physics.solidObject && object.arrayName !== "crate")
-        {
-            this.xVel = ((this.xPos > object.xPos) ? this.xSpeed  : -this.xSpeed);
-            this.yVel = ((this.yPos > object.yPos) ? this.ySpeed  : -this.ySpeed);
-        }
-        else if(object.physics.movement === "dynamic" || object.arrayName === "crate")
-        {
-            var condition = false;
-            switch(this.direction)
-            {
-                case "up" :
-                    condition = (object.yPos + object.height <= this.yPos + abs(object.yVel || 0) && object.yVel >= 0);
-                    break;
-
-                case "down" :
-                    condition = (object.yPos - abs(object.yVel || 0) <= this.yPos + this.height && object.yVel <= 0);
-                    break;
-            }
-            if(condition)
-            {
-                if(this.xVel !== 0 && abs(object.xVel) < abs(this.xVel) && this.direction !== "down")
-                {
-                    object.xVel = this.xVel;
-                }
-                if(this.yVel !== 0 && abs(object.yVel) < abs(this.yVel) && this.direction !== "down")
-                {
-                    object.yVel = this.yVel;
-                }
-            }
-            if(this.direction === "down")
-            {
-                object.yVel = max(0, object.yVel);
-                object.inAir = true;
-            }
-            this.xPos = this.lastXPos;
-            this.yPos = this.lastYPos;
-        }
-    };
-};
-gameObjects.addObject("movingPlatform", createArray(MovingPlatform));
-
 var Player = function(xPos, yPos, width, height, colorValue)
 {
     Rect.call(this, xPos, yPos, width, height);
     DynamicObject.call(this);
 
     this.type = "lifeform";
-
     this.color = colorValue;
 
     this.xAcl = 1.5 * 0.75;//0.7
@@ -2833,43 +3427,55 @@ var Player = function(xPos, yPos, width, height, colorValue)
     this.maxXVel = 4 * 0.75;//0.7
 
     this.maxYVel = 14 * 0.75;
-    this.gravity = 0.55 * 0.5;
+    this.gravity = 0.325;//0.55 * 0.5; 0.3
     this.jumpHeight = 12.5 * 0.75;
 
+    this.coins = 0;
+    this.score = 0;
+    this.swimSpeed = 2;
+    
     this.controls = {
         left : function()
         {
-            return keys[LEFT];
+            return keys[LEFT] || keys[65];
         },
         right : function()
         {
-            return keys[RIGHT];
+            return keys[RIGHT] || keys[68];
         },
         up : function()
         {
-            return keys[UP];
+            return keys[UP] || keys[87];
         },
         down : function()
         {
-            return keys[DOWN];
+            return keys[DOWN] || keys[83];
         },
     };
 
-    this.maxHp = 10;
+    this.maxHp = 5;
     this.hp = this.maxHp;
     this.imageName = "spaceman";
     this.marchTimer = 0;
-    this.marchTime = 10;
-
+    this.marchTime = 30;
+    this.splitMarchTime = this.marchTime / 3;
+    
+    this.revive = function()
+    {
+        this.dead = false;
+        this.hp = this.maxHp;
+    };
+    
     this.draw = function()
     {
+        var img = "suit";//spaceman
         if(this.xVel > this.xAcl)
         {
             if(!this.inAir)
             {
                 this.marchTimer++;
             }
-            this.imageName = (this.marchTimer < this.marchTime / 2) ? "spacemanRight"  : "spacemanRight2";
+            this.imageName = (this.marchTimer < this.splitMarchTime) ? img + "Right" : (this.marchTimer < this.splitMarchTime * 2) ? img + "Right2" : img + "Right3";
         }
         else if(this.xVel < -this.xAcl)
         {
@@ -2877,18 +3483,29 @@ var Player = function(xPos, yPos, width, height, colorValue)
             {
                 this.marchTimer++;
             }
-            this.imageName = (this.marchTimer < this.marchTime / 2) ? "spacemanLeft"  : "spacemanLeft2";
-        } else {
-            this.imageName = "spaceman";
+            this.imageName = (this.marchTimer < this.splitMarchTime) ? img + "Left" : (this.marchTimer < this.splitMarchTime * 2) ? img + "Left2" : img + "Left3";
+        }else{
+            this.imageName = img;
         }
         if(this.marchTimer > this.marchTime)
         {
             this.marchTimer = 0;
         }
-
         image(storedImages[this.imageName], this.xPos, this.yPos, this.width, this.height);
     };
 
+    this.handleDeath = function()
+    {
+        /*Specific code*/
+        if(this.goto.checkPointLevel !== undefined)
+        {
+            this.goto.travelType = "checkPoint";
+        }
+       
+        loader.startLoadLevel(this.goto.checkPointLevel || levelInfo.level);
+    };
+
+    this.restart = false;
     this.update = function()
     {
         if(this.controls.left())
@@ -2929,9 +3546,24 @@ var Player = function(xPos, yPos, width, height, colorValue)
             }
         }
 
-        if(this.controls.up() && !this.inAir)
+        if(this.controls.up())
         {
-            this.yVel = -this.jumpHeight;
+            if(this.inLiquid)
+            {
+                this.yVel = -this.swimSpeed; 
+            }
+            else if(!this.inAir)
+            {
+                this.yVel = -this.jumpHeight;
+            }
+        }
+        
+        if(this.controls.down())
+        {
+            if(this.inLiquid)
+            {
+                this.yVel += this.swimSpeed / 2; 
+            }
         }
 
         //If it fell out of the level restart the level
@@ -2940,16 +3572,16 @@ var Player = function(xPos, yPos, width, height, colorValue)
             this.dead = true;
         }
 
-        if(this.dead || keys[82])
+        //Restart key 'r' spam protection
+        if(!this.restart && !keys[82])
         {
-            /*Specific code*/
-            if(this.goto.checkPointLevel !== undefined)
-            {
-                this.goto.travelType = "checkPoint";
-            }
-            this.dead = false;
-            this.hp = this.maxHp;
-            loader.startLoadLevel(this.goto.checkPointLevel || levelInfo.level);
+            this.restart = true;
+        }
+        
+        if(this.dead || (this.restart && keys[82])) //or 'r'
+        {
+            this.handleDeath();
+            this.restart = false;
         }
 
         this.updateVel();
@@ -2984,77 +3616,175 @@ var Player = function(xPos, yPos, width, height, colorValue)
 gameObjects.addObject("player", createArray(Player));
 
 var levels = {
-    "start" : {
-        background : "overworld",
+    "intro" : {
+        background : "spaceFromEarth",
         doors : {
             'a' : {
-                level : "level2",
+                level : "intro",
                 symbol : 'b',
+            },
+            'b' : {
+                level : "intro",
+                symbol : 'a',
+            },
+            'c' : {
+                level : "intro",
+                symbol : 'd',
                 locked : true,
+            },
+            'd' : {
+                level : "intro",
+                symbol : 'c',
+            },
+            'e' : {
+                level : "level1",
+                symbol : 'a',
+            }
+        },
+        signs : {
+            'a' : {
+                message : "Arrow keys to move\nor wasd",
+                color : color(100, 100, 100),
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 35,
+            },
+            'b' : {
+                message : "Press down to\n activate this\n checkpoint",
+                color : color(100, 100, 100),
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 45,
+            },
+            'c' : {
+                message : "Or to go through\n a door",
+                color : color(100, 100, 100),
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 35,
+            },
+            'd' : {
+                message : "Doors can take you\n to other levels too",
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 35,
+            },
+            'e' : {
+                message : "Collect items\n such as keys.",
+                color : color(100, 100, 100),
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 35,
+            },
+            'f' : {
+                message : "You've finished\nthe tutorial level!",
+                color : color(100, 100, 100),
+                adjustY : -20,
+                adjustW : 100,
+                adjustH : 35,
+            },
+            'g' : {
+                message : "Oh and watch out\nfor enemies and\n hazards",
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 40,
+            },
+            'h' : {
+                message : "You can press 'p' at\nany time to pause\nyour game",
+                color : color(100, 100, 100),
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 45,
+            },
+            'i' : {
+                message : "'r' lets you quickly\nreset the level.",
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 35,
+            },
+            'j' : {
+                message : "Press 't' if you\n can't read a sign",
+                adjustY : -40,
+                adjustW : 100,
+                adjustH : 35,
             },
         },
         keys : {
             'a' : {
-                level : "start",
-                symbol : 'a',
+                level : "intro",
+                symbol : 'c',
             },
         },
-        signs : {
-            'a' : {
-                message : "Welcome \n user",
-                adjustY : -40,
-                adjustW : 70,
-                adjustH : 30,
-            },
-        },
-        plan : [
-            "                         ",
-            "                         ",
-            "                         ",
-            "                         ",
-            "      x          o       ",
-            "    ggggg   O            ",
-            "                       gg",
-            "                         ",
-            "                O        ",
-            "gggg        ddd          ",
-            "d         x  ad     gg   ",
-            "d         x  Kd          ",
-            "d        xggggd          ",
-            "d                        ",
-            "da     a                 ",
-            "dD  p  S           cc    ",
-            "dggggggggggg##ggggggggsss",
+        plan : [ 
+            "   p                                                ",
+            "                                                    ",
+            "                                                    ",
+            "                                                    ",
+            "                                                    ",
+            "                       b   d   e   a   h   i   j   c",
+            "                       D   S   S   K   S   S   S   D",
+            "                      gggggggggggggggggggggggggggggg", 
+            "                      dddddddddddddddddddddddddddddd",
+            "                      ddddddddddddddddd             ",
+            "                      dddddddddddd   f   g         e",
+            "   a   b       c   a  dddddddddddD   S   S         D",
+            "   S   S   f   S   D  ddddddddddddddddddddd##dd#dddd",
+            "ggggggggggggggggggggggddddddddddd##dddddd###dddddddd",
         ],
     },
-    "level2" : {
-        background : "overworld",
+    "level1" : {
         doors : {
-            'b' : {
-                level : "start",
+            'a' : {
+                level : "intro",
+                symbol : 'e',
+            },
+        },
+        plan : [
+            "                          ",
+            "                          ",
+            "                          ",
+            "                          ",
+            "                          ",
+            "                          ",
+            "                          ",
+            "                          ",
+            "                          ",
+            "        FFF               ",
+            "a                         ",
+            "D  p                      ",
+            "gggggbbbgggggbbbgggggggggg",
+            "dddddddddddddddddddddddddd",
+        ],
+    },
+    "test" : {
+        doors : {
+            'a' : {
+                level : "test",
+                symbol : 'a',
+            },
+        },
+        keys : {
+            'a' : {
+                level : "test",
                 symbol : 'a',
             },
         },
         plan : [
-            "                                ",
-            "                                ",
-            "                               b",
-            "              ##           f   D",
-            "            gggggggg     ggggggg",
-            "xx                              ",
-            "xx                              ",
-            "ggg                  sss        ",
-            "                                ",
-            "      sss                       ",
-            "                                ",
-            "                                ",
-            "ssss      c                     ",
-            "         ggg                    ",
-            "                                ",
-            "gl    xcx     r g               ",
-            "gggggggggggggggggd              ",
+            "             ",
+            "             ",
+            "             ",
+            "             ",
+            "             ",
+            "             ",
+            "             ",
+            "             ",
+            "             ",
+            "             ",
+            "     a   a   ",
+            "p    D   K   ",
+            "gggggggggggggg",
         ],
-    },
+    },  
 };
 levels.getSymbol = function(col, row, levelPlan)
 {
@@ -3121,7 +3851,7 @@ levels.build = function(plan)
                 }
                 continue;
             }
-            else if(belowSymbol === 'K')
+            else if(belowSymbol === 'K' || belowSymbol === 'S')
             {
                 continue;
             }
@@ -3129,19 +3859,83 @@ levels.build = function(plan)
             switch(level.plan[row][col])
             {
                 case 'g' :
-                    gameObjects.getObject("ground").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(120, 96, 81));
+                    gameObjects.getObject("ground").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(107, 83, 60));//color(120, 96, 81));
+                    break;
+
+                case 'd' :
+                    gameObjects.getObject("dirt").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(107, 83, 60));
+                    break;
+                
+                case 'b' : 
+                    gameObjects.getObject("block").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(130, 130, 130));
+                    break;
+                
+                case 'w' : 
+                    gameObjects.getObject("water").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+                
+                case '#' :
+                    gameObjects.getObject("lava").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+
+                case 'n' : 
+                    gameObjects.getObject("movingLava").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    gameObjects.getObject("movingLava").getLast().xSpeed = 2;
+                    break;
+                    
+                case 'N' : 
+                    gameObjects.getObject("movingLava").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    gameObjects.getObject("movingLava").getLast().ySpeed = 2;
+                    break;  
+                    
+                case 's' :
+                    gameObjects.getObject("spring").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+                    
+                case 'P' : 
+                    gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(20, 20, 200), "up", true);
+                    break;
+
+                case 'x' :
+                    gameObjects.getObject("crate").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
 
                 case 'm' :
                     gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(200, 200, 20), "up");
-                    gameObjects.getObject("movingPlatform").getLast().xSpeed = 3;
+                    gameObjects.getObject("movingPlatform").getLast().xSpeed = 1.5;
                     break;
 
                 case 'M' :
                     gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(200, 200, 20), "up");
-                    gameObjects.getObject("movingPlatform").getLast().ySpeed = 3;
+                    gameObjects.getObject("movingPlatform").getLast().ySpeed = 1.5;
+                    break;
+
+                case 'c' : 
+                    gameObjects.getObject("coin").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth / 2);
                     break;
                     
+                case 'h' :
+                    gameObjects.getObject("hpCoin").add(xPos + levelInfo.unitWidth / 4, yPos + levelInfo.unitHeight / 4, levelInfo.unitWidth / 2);
+                    break;
+
+                case 'o' :
+                    gameObjects.getObject("circle").add(xPos, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
+                    gameObjects.getObject("circle").getLast().color = color(175, 175, 175);
+                    break;
+
+                case 'O' :
+                    gameObjects.getObject("ring").add(xPos + levelInfo.unitWidth, yPos + levelInfo.unitHeight, levelInfo.unitWidth * 2, color(175, 175, 175));
+                    break;
+
+                case '0' :
+                    gameObjects.getObject("dynamicCircle").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
+                    gameObjects.getObject("dynamicCircle").getLast().color = color(175, 175, 175, 250);
+                    break;
+                    
+                case 'F' : 
+                    gameObjects.getObject("fallingBlock").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+
                 case '<' : case '>' : case '^' : case 'v' :
                     gameObjects.getObject("oneWay").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(120, 96, 81), ({
                         '<' : "left",
@@ -3151,22 +3945,20 @@ levels.build = function(plan)
                     }[level.plan[row][col]]));
                     break;
 
-                case 'd' :
-                    gameObjects.getObject("dirt").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(120, 96, 81));
+                case 'l' : case 'r' : case 'L' : case 'R' :
+                    gameObjects.getObject("slope").add(xPos, yPos, levelInfo.unitWidth * 2, levelInfo.unitHeight, color(0, 0, 0, 150));
+                    gameObjects.getObject("slope").getLast().direction = ({
+                        'l' : "leftup",
+                        'r' : "rightup",
+                        'L' : "leftdown",
+                        'R' : "rightdown"
+                    }[level.plan[row][col]]);
                     break;
-
-                case '#' :
-                    gameObjects.getObject("lava").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
-                    break;
-
-                case 's' :
-                    gameObjects.getObject("spring").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
-                    break;
-
+                    
                 case 'S' :
                     var message = "";
                     var textColor = 0;
-                    var colorValue = 0;
+                    var colorValue;
                     var fontName;
                     var symbol = this.getSymbol(col, row - 1, level.plan);
                     var condition = (level.signs !== undefined && level.signs[symbol] !== undefined);
@@ -3191,40 +3983,26 @@ levels.build = function(plan)
                         sign.textSize = level.signs[symbol].textSize;
                         sign.load();
                     }
-                    break;
-
-                case 'l' : case 'r' : case 'L' : case 'R' :
-                    gameObjects.getObject("slope").add(xPos, yPos, levelInfo.unitWidth + 30, levelInfo.unitHeight);
-                    gameObjects.getObject("slope").getLast().direction = ({
-                        'l' : "leftup",
-                        'r' : "rightup",
-                        'L' : "leftdown",
-                        'R' : "rightdown"
-                    }[level.plan[row][col]]);
-                    break;
-
-                case 'x' :
-                    gameObjects.getObject("crate").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
-                    break;
-
-                case 'o' :
-                    gameObjects.getObject("circle").add(xPos, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
-                    gameObjects.getObject("circle").getLast().color = color(175, 175, 175);
-                    break;
-
-                case 'O' :
-                    gameObjects.getObject("ring").add(xPos + levelInfo.unitWidth, yPos + levelInfo.unitHeight, levelInfo.unitWidth * 2, color(175, 175, 175));
-                    break;
-
-                case 'c' :
-                    gameObjects.getObject("dynamicCircle").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
-                    gameObjects.getObject("dynamicCircle").getLast().color = color(175, 175, 175, 250);
-                    break;
-
+                    break; 
+                    
                 case 'p' :
                     levels.setPlayer(xPos, yPos, color(200, 10, 30));
                     break;
-
+                    
+                case 'D' :
+                    gameObjects.getObject("door").add(xPos, yPos - levelInfo.unitHeight, levelInfo.unitWidth, levelInfo.unitHeight * 2);
+                    var door = gameObjects.getObject("door").getLast();
+                    var aboveSymbol = this.getSymbol(col, row - 1, level.plan);
+                    door.goto = level.doors[aboveSymbol];
+                    door.symbol = aboveSymbol;
+                    
+                    //Reminder
+                    if(level.doors[aboveSymbol].symbol === undefined)
+                    {
+                        println("Error : missing goto symbol in door '" + aboveSymbol + "'"); 
+                    }
+                    break;
+                    
                 case 'f' :
                     gameObjects.getObject("checkPoint").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     for(var i = 0; i < travelObjects.length; i++)
@@ -3232,20 +4010,12 @@ levels.build = function(plan)
                         this.setObjectAtCheckPoint(gameObjects.getObject(travelObjects[i].arrayName).input(travelObjects[i].index), xPos, yPos);
                     }
                     break;
-
-                case 'D' :
-                    gameObjects.getObject("door").add(xPos, yPos - levelInfo.unitHeight, levelInfo.unitWidth, levelInfo.unitHeight * 2);
-                    var door = gameObjects.getObject("door").getLast();
-                    var aboveSymbol = this.getSymbol(col, row - 1, level.plan);
-                    door.goto = level.doors[aboveSymbol];
-                    door.symbol = aboveSymbol;
-                    break;
-
+                    
                 case 'K' :
                     var scope = level.keys[this.getSymbol(col, row - 1, level.plan)];
                     if(!scope.collected)
                     {
-                        gameObjects.getObject("key").add(xPos, yPos, levelInfo.unitWidth / 2, levelInfo.unitHeight);
+                        gameObjects.getObject("key").add(xPos + levelInfo.unitWidth * 0.2, yPos, levelInfo.unitWidth / 2, levelInfo.unitHeight);
                         gameObjects.getObject("key").getLast().goto = scope;
                     }
                     break;
@@ -3254,11 +4024,16 @@ levels.build = function(plan)
     }
 };
 
+game.startFade = function(top)
+{
+    screenUtils.fade.start(20, (top) ? 20 : 0);
+};
 loader.startLoadLevel = function(level)
 {
     this.level = level;
-    screenUtils.fade.start(20, (this.firstLoad) ? 20  : 0);
+    game.startFade(this.firstLoad);
     screenUtils.needsScreenShot = true;
+    game.tempState = game.gameState;
     game.gameState = "load";
 };
 loader.loadLevel = function(level)
@@ -3271,23 +4046,39 @@ loader.loadLevel = function(level)
     cameraGrid.setup(levelInfo.xPos, levelInfo.yPos, levelInfo.width / levelInfo.cellWidth, levelInfo.height / levelInfo.cellHeight, levelInfo.cellWidth, levelInfo.cellHeight);
     gameObjects.addObjectsToCameraGrid();
     backgrounds.load();
+    
+    //Player specific code
     cam.attach(function()
     {
-        return gameObjects.getObject("player")[0];
+        return gameObjects.getObject("player").input(0);
     }, true);
+    gameObjects.getObject("player").input(0).revive();
 };
 loader.update = function()
 {
+    if(this.firstLoad)
+    {
+        backgrounds.primeLoad();
+        buttons.load();
+    }
     if(screenUtils.fade.full())
     {
         this.loadLevel(this.level);
-        game.play();
+        if(!this.firstLoad)
+        {
+            game.play();
+        }else{
+            textAlign(CENTER, CENTER);
+            textSize(20);
+            fill(0, 0, 0, 100);
+            text("Loading", 200, 200);
+        }
         screenUtils.screenShot = get(0, 0, width, height);
         this.firstLoad = false;
     }
     if(!screenUtils.fade.fading)
     {
-        game.gameState = "play";
+        game.gameState = (game.tempState !== "load") ? game.tempState : "play"; 
     }
     if(screenUtils.screenShot !== undefined)
     {
@@ -3296,11 +4087,123 @@ loader.update = function()
 };
 loader.startLoadLevel(levelInfo.level);
 
-smooth();
-
 game.load = function()
 {
     loader.update();
+};
+game.switchGameState = function(condition, state, needsScreenShot)
+{
+    if(condition)
+    {
+        this.startFade();
+        this.switchedState = true;
+        this.switchState = state;
+        if(needsScreenShot)
+        {
+             screenUtils.needsScreenShot = true;
+        }
+    }
+};
+game.pauseMenu = function()
+{
+    image(screenUtils.screenShot, 0, 0);
+    textSize(40);
+    fill(31, 173, 88);
+    textAlign(CENTER, CENTER);
+    text("Paused", 200, 110);
+    fill(0, 0, 0, 60);
+    rect(75, 0, width - 75 * 2, height);
+    
+    buttons.back.draw();
+    this.switchGameState(buttons.back.clicked(), "play");
+    
+    buttons.restart.draw();
+    if(buttons.restart.clicked())
+    {
+        this.gameState = "play";
+        gameObjects.getObject("player").input(0).handleDeath();
+    }
+    
+    buttons.menu.draw();
+    this.switchGameState(buttons.menu.clicked(), "menu");
+};
+game.how = function()
+{
+    fill(0, 0, 0, 60);
+    rect(75, 0, width - 75 * 2, height);
+    fill(11, 68, 153, 80);
+    rect(100, 100, 200, 210, 10);
+    fill(200, 200, 200, 150);
+    textAlign(NORMAL, NORMAL);
+    text("  Use the arrow keys to move or wasd. Press down to go through doors or to activate checkpoints. Press 'p' to pause, 'r' to restart, 't' to print what the sign says if you can't read it and 'm' to go directly to the menu.\n\n   This is Planet Search 2 If you haven't played the first one please play it right now.\n\n        Created by ProlightHub", 110, 115, 200, 225);
+    fill(0, 0, 0, 100);
+    text(game.version, 334, 394); 
+    buttons.back2.draw();
+    this.switchGameState(buttons.back2.clicked(), "menu");
+};
+game.settings = function()
+{
+    textSize(40);
+    fill(31, 173, 88);
+    textAlign(CENTER, CENTER);
+    text("Settings", 200, 110);
+    fill(0, 0, 0, 60);
+    rect(75, 0, width - 75 * 2, height);
+    buttons.back2.draw();
+    this.switchGameState(buttons.back2.clicked(), "extras");
+    buttons.debugMode.draw();
+    buttons.debugMode.message = "debugMode " + game.debugMode;
+};
+game.settings.mousePressed = function()
+{
+    if(buttons.debugMode.clicked())
+    {
+        game.debugMode = !game.debugMode;
+    }
+};
+game.extras = function()
+{
+    textSize(40);
+    fill(31, 173, 88);
+    textAlign(CENTER, CENTER);
+    text("Extras", 200, 110);
+    fill(0, 0, 0, 60);
+    rect(75, 0, width - 75 * 2, height);
+    fill(0, 0, 0, 100);
+    textSize(12);
+    text(game.version, 364, 390); 
+    buttons.back2.draw();
+    this.switchGameState(buttons.back2.clicked(), "menu");
+    buttons.settings.draw();
+    this.switchGameState(buttons.settings.clicked(), "settings");
+};
+var titleFont = createFont("sans serif");
+game.menu = function()
+{
+    fill(0, 0, 0, 60);
+    rect(75, 0, width - 75 * 2, height);
+    fill(41, 98, 213, 100);
+    textFont(titleFont);
+    textAlign(CENTER, CENTER);
+    textSize(43);
+    text("Planet\nSearch 2", 200, 83);
+    textSize(26);
+    fill(0, 0, 0, 30);
+    rect(150, 146, 100, 30, 5);
+    fill(31, 173, 88);
+    text("Amber", 200, 160);
+    fill(0, 0, 0, 100);
+    textSize(12);
+    text(game.version, 364, 390); 
+    
+    buttons.play.draw();
+    this.switchGameState(buttons.play.clicked(), "play");
+    
+    buttons.how.draw();
+    this.switchGameState(buttons.how.clicked(), "how");
+    
+    buttons.extras.draw();
+    this.switchGameState(buttons.extras.clicked(), "extras");
 };
 game.play = function()
 {
@@ -3311,34 +4214,35 @@ game.play = function()
     //gameObjects.drawBoundingBoxes();
     //cameraGrid.draw();
     //cam.draw();
-    signs.drawMessage();
     popMatrix();
     //cam.drawOutline();
-
-    //Debug menu
-    var player = gameObjects.getObject("player").input(0);
-    fill(0, 0, 0, 200);
-    text("xPos " + player.xPos.toFixed(2), 10, 20);
-    text("yPos " + player.yPos.toFixed(2), 10, 34);
-    text("xVel " + player.xVel.toFixed(2), 10, 48);
-    text("yVel " + player.yVel.toFixed(2), 10, 62);
-    text("inAir " + player.inAir, 10, 76);
-    text("hp " + player.hp.toFixed(2), 10, 90);
-    text(game.version, 330, 20);
     
+    //Menu
+    this.switchGameState(keys[77], "menu"); //On key 'm' switch to menu
+    this.switchGameState(keys[80], "pauseMenu", true); //On key 'p' switch to pause menu
+    
+    //Debug stuff 
     fpsCatcher.update();
-    text("sfps " + game.fps + "  afps " + fpsCatcher.actualFps + "  cf " + fpsCatcher.countedFrames + "  s " + second(), 150, 20);
+    screenUtils.debugMode();
 };
 
 var draw = function()
 {
     frameRate(game.fps);
-    background(255, 255, 255);
     backgrounds.drawBackground();
     game[game.gameState]();
     screenUtils.update();
 };
 
+var lastMousePressed = mousePressed;
+mousePressed = function()
+{
+    lastMousePressed();
+    if(game[game.gameState].mousePressed !== undefined)
+    {
+        game[game.gameState].mousePressed();
+    }
+};
     }
     if(typeof draw !== 'undefined') processing.draw = draw;
 });
