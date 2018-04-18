@@ -46,7 +46,7 @@ var processing = new Processing(canvas, function(processing)
 /**   Hybrid Game Engine  **/
 /**
     @Author Prolight
-    @Version 0.3.6 beta
+    @Version 0.4.0 beta
 
     @How  :
         Use the arrow keys to move. Down to go through 
@@ -79,23 +79,49 @@ var processing = new Processing(canvas, function(processing)
     * v0.2.4 LoadImage function is pretty much done, added extra cloud graphics and a Sun, 
     plus checkPoints now are flags, 
     * v0.2.5 Added Dynamic rectangle physics and the key graphic, crates (with nicer collision) are now in the game just needs the player sprite and then it will be to the next version
-    * 
-    * 0.2.6 Signs, oneways and moving platforms are added 
-    * 0.2.7 Crate and ball physics are completely stablized
-    * 0.2.8 Slope Prototype added
-    * 0.2.9 Images can now load in khan academy mode
-    * 0.3.0 completed slopes though they seem a little glitchy
-    * 0.3.1 fps and physics adjusted
-    * 0.3.2 Changed graphics to load
-    * 0.3.3 - 0.3.4 Added a better player graphic. Made clouds in background move. Removed old background and code
+    * v0.2.6 Signs, oneways and moving platforms are added 
+    * v0.2.7 Crate and ball physics are completely stablized
+    * v0.2.8 Slope Prototype added
+    * v0.2.9 Images can now load in khan academy mode
+    * v0.3.0 completed slopes though they seem a little glitchy
+    * v0.3.1 fps and physics adjusted
+    * v0.3.2 Changed graphics to load
+    * v0.3.3 - 0.3.4 Added a better player graphic. Made clouds in background move. Removed old background and code
     Title Screen added (too much like original) Pause Menu added. How and extras menu (For extra stuff) added.
     Added an infomation bar.
-    * 0.3.5 Made the restart key 'r' so you can't hold it down and have the game keep restarting. Added a tuturial level
-    * 0.3.6 Added platforms using oneways, added coins, got rid of suddle glitches with slopes and oneWays.
+    * v0.3.5 Made the restart key 'r' so you can't hold it down and have the game keep restarting. Added a tuturial level
+    * v0.3.6 Added platforms using oneways, added coins, got rid of suddle glitches with slopes and oneWays.
+    * v0.3.7 Added water, ice, Falling blocks and ladders.
+    * v0.3.8 +I have added a type to all the gameObjects. 
+        +Added a lifeform object
+        -Removed a glitch with the water enabling you to swim into the underside of blocks
+        +Added an enemy gameObject
+        +Made moving platforms realistic in terms of physics
+        +Made starting checkpoints invisible     
+    * v0.3.9
+       + Made moving platforms on the x level have a 
+        custom bounding box, so they are more likely to come back.
+        +Allowed enemies to push crates, made crate physics more realistic
+        -Fixed bug where a circle on left wall disappears.
+        +Added point-circle collision detection and point-slope collision detection
+        +Added enemy raycasting  
+    * v0.4.0 #The Debug update
+      + Added a debug cartesian system on right click 
+      + Extra settings with buttons!
+        This is getting close to 5000 lines of code woah!
+      + Added a loading screen with a percentage. 
+         I might turn it off for small loading quantities 
+      + The loading Screen now has a bar
+      
+    Future Updates :
+    Then in v0.4.1
+       Now I need to do a revision of the gameObjects. 
+    and making sure that they all load their draw function.
+    Then I will fix the rendering so that gameObjects render infront and 
+    behind themselves in a constant order
     
-    Added water
-    
-    Future Updates  :
+      I will add enemies that maybe like beakers in 
+      the first Planet Search. And other enemies.
     **/
 
 //Feel free to look through the code
@@ -104,8 +130,10 @@ var processing = new Processing(canvas, function(processing)
 var game = {
     gameState : "menu",
     fps : 60,
-    version : "v0.3.6 beta",
-    debugMode : true, //Turn this to true to see the fps
+    version : "v0.4.0 beta",
+    debugMode : false, //Turn this to true to see the fps
+    showDebugPhysics : false,
+    boundingBoxes : false,
 };
 var levelInfo = {
     level : "intro",
@@ -116,8 +144,9 @@ var levelInfo = {
     /*Changing this will effect game performance. 
     Too low means that there will be too many cells for the camera to loop through.
     Too high and it means that too many collisions will be checked*/
-    cellWidth : 100,
-    cellHeight : 100,
+    //This should be more than the unitSize and less than the cameraSize, If you have a beefier pc turn this up.
+    cellWidth : 100, //30-400
+    cellHeight : 100, //30-400
     /*Changing this will also effect game performance
     Too low means too many objects in each cell and there for lower fps.
     Too high and you won't be able to see anything but you'll get higher fps*/
@@ -154,6 +183,8 @@ angleMode = "degrees";
 
 //predefine
 var cam, cameraGrid, GameObject, observer, gameObjects;
+var WIDTH = width;
+var HEIGHT = height;
 
 smooth();
 
@@ -200,6 +231,7 @@ var Button = function(xPos, yPos, width, height, colorVal, message)
     };
 };
 
+//Pretty chunky, eh?
 var buttons = {
     play : new Button(160, 210, 80, 25, color(11, 68, 153, 100), "Play"),
     how : new Button(160, 245, 80, 25, color(11, 68, 153, 100), "How"),
@@ -209,8 +241,14 @@ var buttons = {
     menu : new Button(160, 280 - 30, 80, 25, color(11, 68, 153, 100), "Menu"),
     back2 : new Button(0, 375, 75, 25, color(11, 68, 153, 100), "Back"),
     settings : new Button(160, 210, 80, 25, color(11, 68, 153, 100), "Settings"),
-    debugMode : new Button(145, 200, 110, 25, color(11, 68, 153, 100), "DebugMode " + game.debugMode),
+    debugMode : new Button(145, 185, 110, 25, color(11, 68, 153, 100), "DebugMode " + game.debugMode),
+    debugPhysics : new Button(145, 220, 110, 25, color(11, 68, 153, 100), "DebugPhysics " + game.showDebugPhysics || false),
+    boundingBoxes : new Button(145, 255, 110, 25, color(11, 68, 153, 100), "BoundingBoxes"),
+    info : new Button(145, 290, 110, 25, color(11, 68, 153, 100), "Info"),
 };
+buttons.boundingBoxes.textSize = 11;
+buttons.debugPhysics.textSize = 11;
+
 buttons.load = function()
 {
     for(var i in this)
@@ -258,31 +296,33 @@ graphics.Fade = function(colorValue)
     this.timerVel = 0.7;
     this.max = 100;
     this.fading = false;
-
+    
     this.start = function(max, start)
     {
         this.max = max || this.max;
         this.timer = start || this.timer;
-        this.fading = true;
+        this.fading = true; 
     };
     this.full = function()
     {
-        return(this.timer > this.max);
+        return(this.timer >= this.max);
     };
     this.draw = function()
     {
         if(this.fading)
-        {
-            if(this.timer < 0 || this.timer > this.max)
+        {               
+            if(!this.stopped)
             {
-                this.timerVel = -this.timerVel;
+                if(this.timer < 0 || this.timer >= this.max)
+                {
+                    this.timerVel = -this.timerVel;
+                }
+                if(this.timer < 0)
+                {
+                    this.fading = false;
+                }
+                this.timer += this.timerVel;
             }
-            if(this.timer < 0)
-            {
-                this.fading = false;
-            }
-            this.timer += this.timerVel;
-
             noStroke();
             fill(red(this.colorValue), green(this.colorValue), blue(this.colorValue), this.timer * 255 / this.max);
             rect(0, 0, width, height);
@@ -664,6 +704,19 @@ var pixelFuncs = {
     },
 };
 
+var pallete = {
+    'b' : color(31, 54, 122),
+    'c' : color(0, 0, 0),
+    'd' : color(43, 181, 181),
+    'e' : color(200, 150, 60),
+    'f' : color(43, 132, 181),
+    'g' : color(14, 130, 31),
+    'h' : color(40, 40, 40),
+    'i' : color(31 - 20, 54 - 20, 122 - 20),
+    'j' : color(200 - 30, 150 - 30, 60 - 30),
+    'k' : color(34, 150, 51),
+    'l' : color(51, 51, 51),
+};
 var storedImages = {
     "suitLeft" : pixelFuncs.createPixelImage({
         width : 30,
@@ -692,19 +745,7 @@ var storedImages = {
             "  dd  dd  ",
             "  ff  ff  ",
         ],
-        pallete : {
-            'b' : color(31, 54, 122),
-            'c' : color(0, 0, 0),
-            'd' : color(43, 181, 181),
-            'e' : color(200, 150, 60),
-            'f' : color(43, 132, 181),
-            'g' : color(14, 130, 31),
-            'h' : color(40, 40, 40),
-            'i' : color(31 - 20, 54 - 20, 122 - 20),
-            'j' : color(200 - 30, 150 - 30, 60 - 30),
-            'k' : color(34, 150, 51),
-            'l' : color(51, 51, 51),
-        },
+        pallete : pallete,
     }),
     "suitLeft2" : pixelFuncs.createPixelImage({
         width : 30,
@@ -733,19 +774,7 @@ var storedImages = {
             "  dd  ff  ",
             "  ff      ",
         ],
-        pallete : {
-            'b' : color(31, 54, 122),
-            'c' : color(0, 0, 0),
-            'd' : color(43, 181, 181),
-            'e' : color(200, 150, 60),
-            'f' : color(43, 132, 181),
-            'g' : color(14, 130, 31),
-            'h' : color(40, 40, 40),
-            'i' : color(31 - 20, 54 - 20, 122 - 20),
-            'j' : color(200 - 30, 150 - 30, 60 - 30),
-            'k' : color(34, 150, 51),
-            'l' : color(51, 51, 51),
-        },
+        pallete : pallete,
     }),
     "suitLeft3" : pixelFuncs.createPixelImage({
         width : 30,
@@ -774,19 +803,7 @@ var storedImages = {
             "  ff  dd  ",
             "      ff  ",
         ],
-        pallete : {
-            'b' : color(31, 54, 122),
-            'c' : color(0, 0, 0),
-            'd' : color(43, 181, 181),
-            'e' : color(200, 150, 60),
-            'f' : color(43, 132, 181),
-            'g' : color(14, 130, 31),
-            'h' : color(40, 40, 40),
-            'i' : color(31 - 20, 54 - 20, 122 - 20),
-            'j' : color(200 - 30, 150 - 30, 60 - 30),
-            'k' : color(34, 150, 51),
-            'l' : color(51, 51, 51),
-        },
+        pallete : pallete,
     }),
     "suitRight" : pixelFuncs.createPixelImage({
         width : 30,
@@ -815,19 +832,7 @@ var storedImages = {
             "  dd  dd  ",
             "  ff  ff  ",
         ],
-        pallete : {
-            'b' : color(31, 54, 122),
-            'c' : color(0, 0, 0),
-            'd' : color(43, 181, 181),
-            'e' : color(200, 150, 60),
-            'f' : color(43, 132, 181),
-            'g' : color(14, 130, 31),
-            'h' : color(40, 40, 40),
-            'i' : color(31 - 20, 54 - 20, 122 - 20),
-            'j' : color(200 - 30, 150 - 30, 60 - 30),
-            'k' : color(34, 150, 51),
-            'l' : color(51, 51, 51),
-        },
+        pallete : pallete,
     }),
     "suitRight2" : pixelFuncs.createPixelImage({
         width : 30,
@@ -856,19 +861,7 @@ var storedImages = {
             "  ff  dd  ",
             "      ff  ",
         ],
-        pallete : {
-            'b' : color(31, 54, 122),
-            'c' : color(0, 0, 0),
-            'd' : color(43, 181, 181),
-            'e' : color(200, 150, 60),
-            'f' : color(43, 132, 181),
-            'g' : color(14, 130, 31),
-            'h' : color(40, 40, 40),
-            'i' : color(31 - 20, 54 - 20, 122 - 20),
-            'j' : color(200 - 30, 150 - 30, 60 - 30),
-            'k' : color(34, 150, 51),
-            'l' : color(51, 51, 51),
-        },
+        pallete : pallete,
     }),
     "suitRight3" : pixelFuncs.createPixelImage({
         width : 30,
@@ -897,19 +890,7 @@ var storedImages = {
             "  dd  ff  ",
             "  ff      ",
         ],
-        pallete : {
-            'b' : color(31, 54, 122),
-            'c' : color(0, 0, 0),
-            'd' : color(43, 181, 181),
-            'e' : color(200, 150, 60),
-            'f' : color(43, 132, 181),
-            'g' : color(14, 130, 31),
-            'h' : color(40, 40, 40),
-            'i' : color(31 - 20, 54 - 20, 122 - 20),
-            'j' : color(200 - 30, 150 - 30, 60 - 30),
-            'k' : color(34, 150, 51),
-            'l' : color(51, 51, 51),
-        },
+        pallete : pallete,
     }),
     "suit" : pixelFuncs.createPixelImage({
         width : 30,
@@ -938,19 +919,7 @@ var storedImages = {
             "  dd  dd  ",
             "  ff  ff  ",
         ],
-        pallete : {
-            'b' : color(31, 54, 122),
-            'c' : color(0, 0, 0),
-            'd' : color(43, 181, 181),
-            'e' : color(200, 150, 60),
-            'f' : color(43, 132, 181),
-            'g' : color(14, 130, 31),
-            'h' : color(40, 40, 40),
-            'i' : color(31 - 20, 54 - 20, 122 - 20),
-            'j' : color(200 - 30, 150 - 30, 60 - 30),
-            'k' : color(34, 150, 51),
-            'l' : color(51, 51, 51),
-        },
+        pallete : pallete,
     }),
 };
 
@@ -960,6 +929,38 @@ graphics.infoBarProps = {
 };
 var screenUtils = {
     fade : new graphics.Fade(color(0, 0, 0)),
+    debugCameraGrid : {
+        draw : function()
+        {
+            if(game.debugMode && mouseIsPressed && game.gameState === "play" && mouseButton === RIGHT)
+            {
+                fill(0, 0, 0, 100);
+                rect((cam.focusXPos - cam.halfWidth) + mouseX + 5 / 2, (cam.focusYPos - cam.halfHeight) + mouseY + 5 / 2, 5, 5);
+                noCursor();
+                cameraGrid.draw();
+            }else{
+                cursor(ARROW);
+            }
+        },
+        update : function()
+        {
+            if(game.debugMode && mouseIsPressed && game.gameState === "play" && mouseButton === RIGHT)
+            {
+                var place = cameraGrid.getPlace((cam.focusXPos - cam.halfWidth) + mouseX, (cam.focusYPos - cam.halfHeight) + mouseY);
+                var cell = cameraGrid[place.col][place.row];
+                
+                textAlign(NORMAL, NORMAL);
+                fill(0, 0, 0, 200);
+                text(place.col + ", " + place.row, 10, 175);
+                var j = 0;
+                for(var i in cell)
+                {
+                    j++;
+                    text(i, 10, 175 + j * 14); 
+                }
+            }
+        },
+    },
     infoBar : {
         height : graphics.infoBarProps.height,
         healthMeter : new Bar(0, 0, 100, graphics.infoBarProps.height - 1, color(34, 190, 51, 70), 10),
@@ -1021,7 +1022,6 @@ var screenUtils = {
             image(this.getImg(), this.xPos, this.yPos);
         };
     },
-    //Will not work with transparent objects
     loadImage : function(object, constImage, name, notRect, customBackColor, ref)
     {
         //Constant Image is for images that do not change, we store them
@@ -1079,18 +1079,51 @@ var screenUtils = {
             return;
         }
         
+        textSize(11);
+        
         //Debug menu
         var player = gameObjects.getObject("player").input(0);
         fill(0, 0, 0, 200);
         textAlign(NORMAL, NORMAL);
         text("xPos " + player.xPos.toFixed(2), 10, 30);
         text("yPos " + player.yPos.toFixed(2), 10, 44);
-        text("xVel " + player.xVel.toFixed(2), 10, 58);
-        text("yVel " + player.yVel.toFixed(2), 10, 72);
-        text("inAir " + player.inAir, 10, 106);
-        text("hp " + player.hp.toFixed(2), 10, 90);
+        if(game.showDebugPhysics)
+        {
+            text("xVel " + player.xVel.toFixed(2), 10, 58);
+            text("yVel " + player.yVel.toFixed(2), 10, 72);
+            text("inAir " + player.inAir, 10, 72 + 14);
+            text("hp " + player.hp.toFixed(2), 10, 72 + 14 * 2);
+            text("Friction " + player.friction.toFixed(2), 10, 72 + 14 * 3);
+            text("xAcl " + player.xAcl.toFixed(2), 10, 72 + 14 * 4);
+        }
         text(game.version, 330, 30);
-        text("sfps " + game.fps + "  afps " + fpsCatcher.actualFps + "  cf " + fpsCatcher.countedFrames + "  s " + second(), 150, 30);
+        text("sfps " + game.fps + " afps " + fpsCatcher.actualFps + " cf " + fpsCatcher.countedFrames + " s " + second(), 130, 30);
+    },
+    loadingScreenBar : new Bar(0, height - 6, width, 6, color(34, 190, 51, 100)),
+    loadingScreen : function()
+    {
+        if(game.gameState === "load")
+        {
+            this.loadingScreenBar.set(loader.loops, loader.estLoops);
+            this.loadingScreenBar.draw();
+            this.loadingScreenBar.noStroke = true;
+        }
+        if(game.gameState === "load" && screenUtils.fade.full())
+        {  
+            fill(200, 200, 200, 200);
+            textSize(13);
+            textAlign(NORMAL, CENTER);
+            if(loader.point !== undefined)
+            {
+                loader.point += 0.075;  
+                text(min(floor(loader.loops * 100 / loader.estLoops), 100) + "%" + 
+                    ([".", "..", "...", ""][min(floor(loader.point), 3)]), 340, 370);  
+                if((loader.point) >= 4)
+                {
+                    loader.point = 0;  
+                }
+            }
+        }
     },
     update : function()
     {
@@ -1105,6 +1138,8 @@ var screenUtils = {
             game.gameState = game.switchState; 
             game.switchedState = false;
         }
+        this.debugCameraGrid.update();
+        this.loadingScreen();
     },
 };
 
@@ -1182,7 +1217,7 @@ var physics = {
             case "leftup" :
                 v1.xPos = slope1.xPos;
                 v1.yPos = slope1.yPos;
-                v2.xPos = slope1.xPos;
+                v2.xPos = slope1.xPos + 1;
                 v2.yPos = slopeBottom;
                 v3.xPos = slopeRight;
                 v3.yPos = slopeBottom;
@@ -1193,7 +1228,7 @@ var physics = {
                 v1.yPos = slope1.yPos;
                 v2.xPos = slope1.xPos;
                 v2.yPos = slopeBottom;
-                v3.xPos = slopeRight;
+                v3.xPos = slopeRight - 1;
                 v3.yPos = slopeBottom;
                 break;
     
@@ -1238,6 +1273,13 @@ var observer = {
             },
             solveCollision : function() {},
         },
+        "pointcircle" : {
+            colliding : function(point1, circle1)
+            {
+               return (dist(point1.xPos, point1.yPos, circle1.xPos, circle1.yPos) < circle1.radius);
+            },
+            solveCollision : function() {},
+        },
         "pointpolygon" : {
             colliding : function(point1, polygon1)
             {
@@ -1254,6 +1296,15 @@ var observer = {
                 return inside;
             },
             solveCollision : function(point1, polygon1) {},
+        },
+        "pointslope" : {
+            colliding : function(point1, slope1)
+            {
+                return observer.collisionTypes.pointpolygon.colliding(point1, {
+                    points : physics.getSlopePoints(slope1)
+                });
+            },
+            solveCollision : function() {},
         },
         "circleslope" : {
             colliding : function(circle1, slope1)
@@ -1721,6 +1772,9 @@ var observer = {
             },
             solveCollision : function(rect1, rect2, extra)
             {
+                //I know this has become a mess, but it works
+              
+                var toReturn = {};
                 if(rect1.sloped <= 2)
                 {
                     rect1.sloped++;
@@ -1751,6 +1805,13 @@ var observer = {
                 var pushY = ((rect1.middleYPos + addY) - rect2.middleYPos);
                 var rect2Moveable = (!rect2.physics.independent && rect2.physics.movement === "dynamic");
 
+                //Prevent cramming
+                if(rect1.xPos === rect2.xPos && rect1.yPos === rect2.yPos)
+                {
+                    rect2.yVel = -abs(rect2.yVel);
+                    rect1.yVel = abs(rect1.yVel);
+                }
+
                 var fail = true;
                 if(abs(pushY) > abs(pushX))
                 {
@@ -1772,7 +1833,7 @@ var observer = {
                                 
                                 if(rect2.physics.movement === "static" && rect1.yVel < 0)
                                 {
-                                     sUp = false;
+                                    sUp = false;
                                 }   
                             }
                             if(!up)
@@ -1780,17 +1841,22 @@ var observer = {
                                 sDown = (rect2.yPos + rect1.height + abs(rect1.yVel) >= rect1.yPos);
                             }
                         }
-                        if(pushY > 0 && down && sDown && (rect1.collidedWithCircle || rect1.yPos >= inY2 - abs(rect1.yVel)))
+                        if(pushY > 0 && down && sDown && (rect1.collidedWithCircle || rect1.inLiquid || rect1.yPos >= inY2 - abs(rect1.yVel)))
                         {
                             if(rect2Moveable)
                             {
+                                if(!rect2.inAir && rect1.inAir)
+                                {
+                                    rect2.yVel = min(rect2.yVel, min(rect1.yVel, 0));
+                                    rect1.yVel = max(0, rect1.yVel);
+                                }
                                 rect2.yVel = min(rect2.yVel, 0);
                                 if(rect1.yVel >= 0)
                                 {
                                     rect1.yVel = max(rect1.yVel + (rect1.gravity * 1.2 || 1), 0);
                                 }
                                 if((rect2.bottom) || (rect1.top && rect1.bottom && (abs(rect1.yVel) < (rect2.yVel) ||
-                                        (rect2.yVel === 0 && rect2.lastRectCollider.arrayName !== "oneWay"))))
+                                   (rect2.yVel === 0 && rect2.lastRectCollider.arrayName !== "oneWay"))))
                                 {
                                     rect1.yVel = max(rect1.yVel, 0);
                                     rect2.yVel = max(rect2.yVel, 0);
@@ -1804,13 +1870,14 @@ var observer = {
                                     }
                                 }
                                 rect2.top = true;
-                            } else {
+                            }else{
                                 rect1.yVel = 0;
                                 rect1.bottom = true;
                             }
                             fail = false;
                             rect1.inAir = true;
                             rect1.yPos = rect2.yPos + rect2.height;
+                            toReturn.side = "down";
                         }
                         else if(pushY < 0 && up && sUp)
                         {
@@ -1819,10 +1886,16 @@ var observer = {
                                 rect2.yVel = min(rect2.yVel, (rect2.gravity || 1));
                                 if(rect2.yVel <= 0)
                                 {
-                                    rect1.yVel += rect2.yVel;
+                                    rect1.yVel += abs(rect2.yVel);
+                                }
+                                
+                                //Fix the flying with a block underneath glitch
+                                if(rect1.inAir && rect2.inAir && rect1.yVel > 1.2 && rect2.yVel > 1.2)
+                                {
+                                    rect2.yVel += rect1.yVel;
                                 }
                                 rect2.bottom = true;
-                            } else {
+                            }else{
                                 rect1.yVel = 0;
                                 rect1.top = true;
                             }
@@ -1832,6 +1905,7 @@ var observer = {
                             {
                                 rect1.yPos = rect2.yPos - rect1.height;
                             }
+                            toReturn.side = "up";
                         }
                     }
                 }
@@ -1868,6 +1942,7 @@ var observer = {
                                 rect1.xVel = 0;
                             }
                             rect1.xPos = rect2.xPos + rect2.width;
+                            toReturn.side = "right";
                         }
                         if(pushX < 0 && left && sLeft)
                         {
@@ -1875,15 +1950,18 @@ var observer = {
                             {
                                 rect2.xVel = max(rect2.xVel, rect1.maxXVel);
                                 rect1.xVel = min(rect1.xVel, 0);
-                            } else {
+                            }else{
                                 rect1.xVel = 0;
                             }
                             rect1.xPos = (rect2.xPos - rect1.width);
+                            toReturn.side = "left";
                         }
                     }
                 }
                 rect1.touchedRect = true;
                 rect1.lastRectCollider = rect2;
+                
+                return toReturn;
             },
         },
     },
@@ -2005,7 +2083,6 @@ var Camera = function(xPos, yPos, width, height)
         this.lowerRight = cameraGrid.getPlace(this.focusXPos + this.halfWidth - EPSILON, this.focusYPos + this.halfHeight - EPSILON);
 
         translate(this.xPos, this.yPos);
-
         if(levelInfo.width >= this.width)
         {
             translate(this.halfWidth - this.focusXPos, 0);
@@ -2194,14 +2271,20 @@ cameraGrid.addReference = function(object)
         arrayName : object.arrayName,
         index : object.index,
     };
-    var upperLeft = this.getPlace(object.boundingBox.xPos, object.boundingBox.yPos);
-    var lowerRight = this.getPlace(object.boundingBox.xPos + object.boundingBox.width, object.boundingBox.yPos + object.boundingBox.height);
-    for(var col = upperLeft.col; col <= lowerRight.col; col++)
+    if(!object.boundingBox.off)
     {
-        for(var row = upperLeft.row; row <= lowerRight.row; row++)
+        var upperLeft = this.getPlace(object.boundingBox.xPos, object.boundingBox.yPos);
+        var lowerRight = this.getPlace(object.boundingBox.xPos + object.boundingBox.width, object.boundingBox.yPos + object.boundingBox.height);
+        for(var col = upperLeft.col; col <= lowerRight.col; col++)
         {
-            this[col][row][object.arrayName + object.index] = toSet;
+            for(var row = upperLeft.row; row <= lowerRight.row; row++)
+            {
+                this[col][row][object.arrayName + object.index] = toSet;
+            }
         }
+    }else{
+         var place = this.getPlace(object.xPos, object.yPos);
+         this[place.col][place.row][object.arrayName + object.index] = toSet;
     }
 };
 cameraGrid.draw = function()
@@ -2220,6 +2303,11 @@ cameraGrid.draw = function()
 var gameObjects = createArray([]);
 gameObjects.drawBoundingBoxes = function()
 {
+    if(!game.boundingBoxes)
+    {
+        return;  
+    }
+    
     noFill();
     stroke(0, 0, 0);
     strokeWeight(1);
@@ -2261,6 +2349,15 @@ gameObjects.removeObjects = function()
         }
     }
 };
+gameObjects.findOrder = function()
+{
+    //Order for rendering
+    this.order = [];
+    for(var i = 0; i < this.length; i++)
+    {
+        this.order.push(this[i].name);  
+    }
+};
 gameObjects.addObjectsToCameraGrid = function()
 {
     for(var i = 0; i < this.length; i++)
@@ -2278,9 +2375,19 @@ gameObjects.applyCollision = function(objectA)
         return; //We don't want to process anything that doesn't move
     }
     
-    var upperLeft = cameraGrid.getPlace(objectA.boundingBox.xPos, objectA.boundingBox.yPos);
-    var lowerRight = cameraGrid.getPlace(objectA.boundingBox.xPos + objectA.boundingBox.width, objectA.boundingBox.yPos + objectA.boundingBox.height);
-
+    var upperLeft = {};
+    var lowerRight = {};
+    
+    if(!objectA.boundingBox.off)
+    {
+        upperLeft = cameraGrid.getPlace(objectA.boundingBox.xPos, objectA.boundingBox.yPos);
+        lowerRight = cameraGrid.getPlace(objectA.boundingBox.xPos + objectA.boundingBox.width, objectA.boundingBox.yPos + objectA.boundingBox.height);
+    }else{
+        var place = cameraGrid.getPlace(objectA.xPos, objectA.yPos);
+        upperLeft = place;
+        lowerRight = place;
+    }
+    
     for(var col = upperLeft.col; col <= lowerRight.col; col++)
     {
         for(var row = upperLeft.row; row <= lowerRight.row; row++)
@@ -2295,34 +2402,50 @@ gameObjects.applyCollision = function(objectA)
                     continue;
                 }
 
-
                 var objectB = this.getObject(cell[i].arrayName).input(cell[i].index);
+                                
+                if(objectA.boundingBox.off && !objectB.boundingBox.off)
+                {
+                    if(!observer.collisionTypes.pointrect.colliding(objectA, objectB.boundingBox))
+                    {
+                        continue;
+                    }
+                }
+                else if(!objectA.boundingBox.off && objectB.boundingBox.off)
+                {
+                     if(!observer.collisionTypes.pointrect.colliding(objectB, objectA.boundingBox))
+                     {
+                         continue;
+                     }
+                }
 
                 //Test boundingBoxes
-                if(!observer.boundingBoxesColliding(objectA.boundingBox, objectB.boundingBox))
+                if(!objectA.boundingBox.off && !objectB.boundingBox.off && !observer.boundingBoxesColliding(objectA.boundingBox, objectB.boundingBox))
                 {
                     continue;
                 }
 
                 var colliding = true;
-                if(!(objectA.physics.shape === "rect" && objectB.physics.shape === "rect")) //Assuming rects fill their boundingBox
+                if(!(objectA.physics.shape === "rect" && objectB.physics.shape === "rect") || 
+                    (objectA.boundingBox.overSized || objectB.boundingBox.overSized)) //Assuming rects fill their boundingBox
                 {
                     colliding = observer.colliding(objectA, objectB);
                 }
 
                 if(colliding)
                 {
+                    var info = {};
                     if(objectA.physics.solidObject && objectB.physics.solidObject)
                     {
-                        observer.solveCollision(objectA, objectB);
+                        info = observer.solveCollision(objectA, objectB) || {};
                     }
                     if(objectA.onCollide !== undefined)
                     {
-                        objectA.onCollide(objectB);
+                        objectA.onCollide(objectB, info);
                     }
                     if(objectB.onCollide !== undefined)
                     {
-                        objectB.onCollide(objectA);
+                        objectB.onCollide(objectA, info);
                     }
                 }
             }
@@ -2342,10 +2465,10 @@ gameObjects.apply = function()
                 var array = this.getObject(cell[i].arrayName);
                 var object = array.input(cell[i].index);
                 array.applyObject(cell[i].index); //Needed for moving objects around
-
+                 
                 /*Keep the cell up to date
                 Note : use this before referencing a cell*/
-                if(object.physics.movement === "dynamic")
+                if(object.physics.movement === "dynamic" || object.physics.changes)
                 {
                     delete cameraGrid[col][row][i];
                     cameraGrid.addReference(object);
@@ -2433,6 +2556,7 @@ var Circle = function(xPos, yPos, diameter)
     this.boundingBox.width = this.diameter;
     this.boundingBox.height = this.diameter;
     this.physics.shape = "circle";
+    this.type = "collision";
 
     this.draw = function()
     {
@@ -2480,7 +2604,7 @@ var DynamicObject = function()
         if(this.boundingBox.xPos <= levelInfo.xPos)
         {
             this.xVel = max(0, this.xVel);
-            this.xPos = abs(this.xPos - this.boundingBox.xPos) + levelInfo.xPos - (this.diameter || 0);
+            this.xPos = abs(this.xPos - this.boundingBox.xPos) + levelInfo.xPos;
         }
         if(this.boundingBox.xPos + this.boundingBox.width >= levelInfo.xPos + levelInfo.width)
         {
@@ -2496,10 +2620,177 @@ var DynamicObject = function()
             this.yVel = 0;
         }
         this.inAir = true;
+
+        if(!this.onLadder)
+        {
+            this.yVel += this.gravity;
+        }
+        
         this.inLiquid = false;
-        this.yVel += this.gravity;
-        this.yVel = constrain(this.yVel, -this.maxYVel, this.maxYVel);
+        this.onLadder = false;
+        //this.yVel = constrain(this.yVel, -this.maxYVel, this.maxYVel);
+        
+        this.yVel = min(this.yVel, this.maxYVel);
+        if(this.minYVel !== undefined)
+        {
+            this.yVel = max(this.yVel, this.minYVel);
+        }else{
+            this.yVel = max(this.yVel, -this.maxYVel);  
+        }
         this.yPos += this.yVel;
+    };
+};
+
+//The lifeform package (object) must be instantiated with a dynamic rect
+var LifeForm = function(hp, notNormalDeath)
+{
+    this.type = "lifeform";
+    
+    //Death stats
+    this.maxHp = hp || 5;
+    this.hp = this.maxHp;
+    this.dead = false;
+    this.normalDeath = !notNormalDeath;
+    
+    //xVel
+    this.xAcl = 0.8;//1.0 is the default
+    this.xDeacl = 0.05;
+    this.maxXVel = 3;
+
+    //yVel
+    this.maxYVel = 10; //Max falling speed
+    this.minYVel = -18; //Min jumping speed
+    this.gravity = 0.325;
+    this.jumpHeight = 9.4;
+
+    //Speeds
+    this.swimSpeed = 2;
+    this.climbSpeed = 2.5;
+    this.friction = 1; //Friction as a multiplier
+    
+    this.revive = function()
+    {
+        this.dead = false;
+        this.hp = this.maxHp;
+    };
+        
+    this.handleDeath = function()
+    {
+        if(!this.save)
+        {
+            this.remove();
+        }
+    };
+    
+    this.setMaxHp = function(type, amt)
+    {
+        if(type === "set")
+        {
+            this.maxHp = amt;
+            this.hp = this.maxHp;
+        }
+        else if(type === "add")
+        {
+            this.maxHp += amt;
+            this.hp = this.maxHp;
+        }
+    };
+    
+    this.update = function()
+    {
+        //The controls controller for moving
+        if(this.controls !== undefined)
+        {
+            if(this.controls.left())
+            {
+                this.xVel -= this.xAcl;
+            }
+            if(this.controls.right())
+            {
+                this.xVel += this.xAcl;
+            }
+    
+            if(!this.controls.left() && !this.controls.right())
+            {
+                var xDeacl = ((this.inAir) ? (this.xDeacl * this.friction) * 0.75  : (this.xDeacl * this.friction));
+                if(this.inAir)
+                {
+                    if(this.xVel > 0)
+                    {
+                        this.xVel += this.xAcl * 0.05;
+                    }
+                    if(this.xVel < 0)
+                    {
+                        this.xVel -= this.xAcl * 0.05;
+                    }
+                }
+                if(this.xVel > 0)
+                {
+                    this.xVel -= xDeacl;
+                }
+                if(this.xVel < 0)
+                {
+                    this.xVel += xDeacl;
+                }
+    
+                if(this.xVel > -xDeacl && this.xVel < xDeacl)
+                {
+                    this.xVel = 0;
+                }
+            }
+    
+            if(this.controls.up())
+            {
+                if(this.inLiquid)
+                {
+                    this.yVel = -this.swimSpeed; 
+                }
+                else if(this.onLadder)
+                {
+                    this.yVel = -this.climbSpeed; 
+                }
+                else if(!this.inAir)
+                {
+                    this.yVel = -this.jumpHeight;
+                }
+            }
+            
+            if(this.controls.down())
+            {
+                if(this.inLiquid)
+                {
+                    this.yVel = this.swimSpeed; 
+                }
+                else if(this.onLadder)
+                {
+                    this.yVel = this.climbSpeed; 
+                }
+            }
+    
+            if(!this.controls.up() && !this.controls.down() && this.onLadder)
+            {
+                this.yVel = 0;
+            }
+        }
+        
+        //If it fell out of the level restart the level
+        if(this.yPos >= levelInfo.yPos + levelInfo.height || this.hp <= 0)
+        {
+            this.dead = true;
+        }
+      
+        if(this.dead && this.normalDeath)
+        {
+            this.handleDeath();
+        }
+        
+        this.friction = 1;
+        if(this.setXAcl !== undefined)
+        {
+            this.xAcl = this.setXAcl;
+        }
+        this.updateVel();
+        this.updateBoundingBox();
     };
 };
 
@@ -2568,6 +2859,8 @@ var Slope = function(xPos, yPos, width, height, colorValue)
     var thicknessY = 0.1;
     var bindingY = 3;
     this.slip = 0.5;
+    this.type = "collision";
+    
     this.draw = function()
     {
         fill(this.color);
@@ -2601,6 +2894,8 @@ var OneWay = function(xPos, yPos, width, height, colorValue, direction, inHerita
     } else {
         DynamicRect.call(this, xPos, yPos, width, height);
     }
+
+    this.type = "platform";
 
     this.color = colorValue;
     this.direction = direction;
@@ -2679,12 +2974,82 @@ var FallingBlock = function(xPos, yPos, width, height, colorValue)
 {
     Rect.call(this, xPos, yPos, width, height);
     this.color = colorValue || color(0, 0, 0, 70);
+    this.timer = 0;
+    this.trigTime = 1;
+    this.fallTime = 70;
+    this.gravity = 1.5;
+    //this.physics.changes = true;
+    this.type = "block";
     
+    //Don't forget to set this to true since this object moves but it's not dynamic
+    
+    this.physics.sides = {
+        up : true,
+    };
+    
+    this.originalYPos = this.yPos;
+    this.originalColor = this.color;
+    this.opacity = 130;
+    this.maxOpacity = 130;
     this.draw = function()
     {
         fill(this.color);
         rect(this.xPos, this.yPos, this.width, this.height);
         rect(this.xPos + this.width * 0.15, this.yPos + this.height * 0.15, this.width * 0.7, this.height * 0.7);
+    };
+    
+    this.update = function()
+    {
+          
+        if(this.activated)
+        {
+            this.timer++; 
+            this.color = color(100, 0, 0, this.opacity);  
+            
+            if(this.yPos > this.originalYPos && this.opacity > 50)
+            {
+                this.opacity -= 0.5;
+            }
+             
+            if(this.timer >= this.fallTime)
+            {
+                this.yPos += this.gravity;
+            }
+
+            //Make the bounding box grow with difference in position,
+            //So that it always comes back when it gets to the bottom of the level
+            if(this.yPos > this.originalYPos)
+            {
+                this.boundingBox.height = abs(this.yPos - this.originalYPos) + this.height;
+            }
+                      
+            if(this.opacity <= 50)//if(this.yPos >= levelInfo.height)
+            {
+                this.timer = 0;
+                this.activated = false;
+                this.opacity = this.maxOpacity;
+                this.boundingBox.overSized = false;
+                this.yPos = this.originalYPos;
+                this.color = this.originalColor;
+                this.boundingBox.height = this.height;
+                //this.physics.changes = false; 
+            }
+        }
+    };
+    
+    this.onCollide = function(object)
+    {
+        if(object.type === "lifeform" && !object.inAir && !this.activated)
+        {
+            if(this.timer >= this.trigTime)
+            {
+                this.boundingBox.overSized = true;
+                this.activated = true;
+                this.physics.changes = true; 
+            }else{  
+                this.timer++;
+            } 
+        }
     };
 };
 gameObjects.addObject("fallingBlock", createArray(FallingBlock));
@@ -2697,23 +3062,22 @@ var MovingPlatform = function(xPos, yPos, width, height, colorValue, direction, 
     this.physics.sides = {
         up : true,
     };
-
     this.physics.movement = (fixed) ? "static" : "dynamic"; 
+    this.boundingBox.maxWidth = WIDTH * 0.5;
+    
+    this.type = "platform";
 
     this.lastUpdate = this.update;
     this.gravity = 0;
 
     this.xSpeed = 0;
-    this.xVel = this.xSpeed;
-    this.lastXVel = this.xVel;
+    this.outerXVel = this.xSpeed;
+    this.lastXVel = this.outerXVel;
 
     this.ySpeed = 0;
-    this.yVel = this.ySpeed;
-    this.lastYVel = this.yVel;
-
-    this.lastYPos = this.yPos;
-    this.lastXPos = this.xPos;
-
+    this.outerYVel = this.ySpeed;
+    this.lastYVel = this.outerYVel;
+    
     this.draw = function()
     {
         fill(this.color);
@@ -2723,94 +3087,103 @@ var MovingPlatform = function(xPos, yPos, width, height, colorValue, direction, 
     };
     
     screenUtils.loadImage(this, true, "movingPlatform");
-        
+    this.updateBoundingBox = function()
+    {     
+        if(this.outerXVel !== 0)
+        {
+            this.boundingBox.overSized = true;
+            if(this.xPos < this.boundingBox.xPos)
+            {
+                this.boundingBox.width += abs(this.boundingBox.xPos - this.xPos);
+                this.boundingBox.xPos = this.xPos;  
+            }else{
+                var rightX = this.xPos + this.width;
+                var rightXB = this.boundingBox.xPos + this.boundingBox.width;
+                if(rightX > rightXB)
+                {
+                    var diff = abs(rightX - rightXB);
+                    this.boundingBox.width += diff; 
+                    if(this.boundingBox.width >= this.boundingBox.maxWidth)
+                    {
+                         this.boundingBox.xPos += diff;
+                    }
+                }
+            }
+            this.boundingBox.width = min(this.boundingBox.maxWidth, this.boundingBox.width);
+        }else{
+            this.boundingBox.xPos = this.xPos;  
+        }
+        this.boundingBox.yPos = this.yPos;
+    };
+    this.changedX = 0;
     this.update = (this.physics.movement === "dynamic") ? function()
-    {
-        if(this.xVel === 0 && this.xSpeed !== 0)
+    {   
+        this.outerXVel = this.nextXVel || this.outerXVel;
+        if(this.outerXVel === 0 && this.xSpeed !== 0)
         {
-            this.xVel = ((random(0, 100) > 50) ? -this.xSpeed  : this.xSpeed);
+            this.outerXVel = ((random(0, 100) > 50) ? -this.xSpeed : this.xSpeed);
         }
-
-        if(this.xVel < 0)
-        {
-            this.xVel = -this.xSpeed;
-        }
-        else if(this.xVel > 0)
-        {
-            this.xVel = this.xSpeed;
-        }
+        
         if(this.xPos <= levelInfo.xPos)
         {
-            this.xVel = this.xSpeed;
+            this.outerXVel = this.xSpeed;
         }
         else if(this.xPos >= levelInfo.xPos + levelInfo.width - this.width)
         {
-            this.xVel = -this.xSpeed;
+            this.outerXVel = -this.xSpeed;
         }
-        this.xPos += this.xVel;
 
-        if(this.yVel === 0 && this.ySpeed !== 0)
+        this.xPos += this.outerXVel;
+        this.nextXVel = undefined;
+        
+        this.outerYVel = this.nextYVel || this.outerYVel;
+        if(this.outerYVel === 0 && this.ySpeed !== 0)
         {
-            this.yVel = ((random(0, 100) > 50) ? -this.ySpeed  : this.ySpeed);
+            this.outerYVel = ((random(0, 100) > 50) ? -this.ySpeed : this.ySpeed);
         }
-        if(this.yVel < 0)
-        {
-            this.yVel = -this.ySpeed;
-        }
-        else if(this.yVel > 0)
-        {
-            this.yVel = this.ySpeed;
-        }
+        
         if(this.yPos <= levelInfo.yPos)
         {
-            this.yVel = this.ySpeed;
+            this.outerYVel = this.ySpeed;
         }
-        else if(this.yPos >= levelInfo.yPos + levelInfo.height - this.height)
+        else if(this.yPos >= levelInfo.yPos + levelInfo.width - this.width)
         {
-            this.yVel = -this.ySpeed;
+            this.outerYVel = -this.ySpeed;
         }
-        this.yPos += this.yVel;
 
+        this.yPos += this.outerYVel;
+        this.nextYVel = undefined;
         this.lastUpdate();
-        this.lastYPos = this.yPos;
         this.lastXPos = this.xPos;
+        this.lastYPos = this.yPos;
+        this.lastOuterXVel = this.outerXVel;
+        this.changedX--;
     } : this.update;
 
     this.onCollide = (this.physics.movement === "dynamic") ? function(object)
     {
-        if(object.type === "block" && object.physics.solidObject && object.arrayName !== "crate")
+        if(this.arrayName === object.arrayName)
         {
-            this.xVel = ((this.xPos > object.xPos) ? this.xSpeed  : -this.xSpeed);
-            this.yVel = ((this.yPos > object.yPos) ? this.ySpeed  : -this.ySpeed);
+            return;  
+        }
+        if(object.type === "block" && object.arrayName !== "crate")
+        {
+            this.nextXVel = ((this.xPos > object.xPos) ? this.xSpeed : -this.xSpeed);
+            this.nextYVel = ((this.yPos > object.yPos) ? this.ySpeed : -this.ySpeed);
+            this.changedX = 20;
         }
         else if(object.physics.movement === "dynamic" || object.arrayName === "crate")
         {
-            var condition = false;
-            switch(this.direction)
+            if(object.yPos + object.height < this.yPos + this.height * 0.3)
             {
-                case "up" :
-                    condition = (object.yPos + object.height <= this.yPos + abs(object.yVel || 0) && object.yVel >= 0);
-                    break;
-
-                case "down" :
-                    condition = (object.yPos - abs(object.yVel || 0) <= this.yPos + this.height && object.yVel <= 0);
-                    break;
-            }
-            if(condition)
-            {
-                if(this.xVel !== 0 && abs(object.xVel) < abs(this.xVel) && this.direction !== "down")
+                if(this.changedX <= 0 && this.outerXVel !== 0 && abs(object.xVel) < abs(this.outerXVel) && abs(object.xVel) < this.xSpeed)
                 {
-                    object.xVel = this.xVel;
+                    object.xVel = this.outerXVel;
                 }
-                if(this.yVel !== 0 && abs(object.yVel) < abs(this.yVel) && this.direction !== "down")
+                if(this.outerYVel !== 0 && abs(object.yVel) < abs(this.outerYVel) && abs(object.yVel) < this.ySpeed)
                 {
-                    object.yVel = this.yVel;
+                    object.yVel = this.outerYVel;
                 }
-            }
-            if(this.direction === "down")
-            {
-                object.yVel = max(0, object.yVel);
-                object.inAir = true;
             }
             this.xPos = this.lastXPos;
             this.yPos = this.lastYPos;
@@ -2836,6 +3209,8 @@ var Lava = function(xPos, yPos, width, height, colorValue, damage)
     this.boundingBox.yPos = this.yPos + yPadding;
     this.boundingBox.width = widthPadding;
     this.boundingBox.height = heightPadding;
+
+    this.type = "hazard";
 
     this.grid = [];
     this.setupGrid = function(cols, rows)
@@ -2876,7 +3251,7 @@ var Lava = function(xPos, yPos, width, height, colorValue, damage)
     this.num = round(random(0, 1000));
     screenUtils.loadImage(this, true, "lava" + this.num);
 
-    this.damage = damage || 0.075;
+    this.damage = damage || 0.08;
     this.onCollide = function(object)
     {
         if(object.type === "lifeform")
@@ -2893,6 +3268,8 @@ var MovingLava = function(xPos, yPos, width, height, colorValue, damage)
     MovingPlatform.call(this, xPos, yPos, width, height, colorValue, "left", false);
     this.lastOnCollide = this.onCollide;
     this.imageName = "lava" + this.num;
+    
+    this.type = "hazard";
     
     this.physics.solidObject = true;
 
@@ -2914,16 +3291,17 @@ var Water = function(xPos, yPos, width, height, colorValue)
     this.color = colorValue || color(40, 103, 181, 150);
     this.physics.solidObject = false;
     
+    this.type = "liquid";
     this.thickness = 1.405;
     
     this.onCollide = function(object)
     {
         if(object.physics.movement === "dynamic")
         {
-            object.inAir = false;
-            object.inLiquid = true;
             object.yVel = object.yVel / this.thickness;
             object.xVel = object.xVel / this.thickness;
+            object.inLiquid = true;
+            object.inAir = false;
         }
     };
 };
@@ -2936,7 +3314,8 @@ var Crate = function(xPos, yPos, width, height, colorValue)
     this.breakPercent = 0;
     this.breakRate = 0.05;
     this.xDeacl = 0.35; //Turn this up for less glitches
-
+    this.type = "block";
+    
     this.draw = function()
     {
         fill(this.color);
@@ -2960,6 +3339,7 @@ var Coin = function(xPos, yPos, diameter, colorValue, amt)
     this.amt = amt || 1;
     this.score = this.amt * 100;
     this.physics.solidObject = false;
+    this.type = "item";
     
     this.onCollide = function(object)
     {
@@ -2970,14 +3350,14 @@ var Coin = function(xPos, yPos, diameter, colorValue, amt)
             this.remove(); //Don't forget to delete the coin!
         }
     };
-}
+};
 gameObjects.addObject("coin", createArray(Coin));
 
 var HpCoin = function(xPos, yPos, diameter, colorValue, amt)
 {
     Circle.call(this, xPos, yPos, diameter);
     this.color = colorValue || color(75, 194, 164 - 50, 200);
-    
+    this.type = "item";
     this.amt = amt || 1;
     this.score = this.amt * 100;
     this.physics.solidObject = false;
@@ -2999,6 +3379,7 @@ var Ring = function(xPos, yPos, diameter, colorValue)
 {
     Circle.call(this, xPos, yPos, diameter);
     this.color = colorValue;
+    this.type = "collision";
 
     this.angle = 0;
     this.bladeSpeed = round(random(3, 8)) * ((random(0, 100) > 50) ? 1  : -1) * 0.75;
@@ -3047,6 +3428,7 @@ var Ground = function(xPos, yPos, width, height, colorValue)
     Rect.call(this, xPos, yPos, width, height);
     this.color = colorValue;
     this.grassColor = color(28, 156, 30);
+    this.type = "block";
 
     this.draw = function()
     {
@@ -3085,13 +3467,86 @@ var Block = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("block", createArray(Block));
 
+var Ice = function(xPos, yPos, width, height, colorValue, slipFactor)
+{
+    this.noGrass = true;
+    this.arrayName = "ice";
+    Ground.call(this, xPos, yPos, width, height, colorValue || color(33, 198, 207));
+    
+    this.slipFactor = slipFactor || -0.45;
+    this.onCollide = function(object)
+    {
+        if(object.physics.movement === "dynamic")
+        {
+            if(object.friction !== undefined)
+            {
+                object.friction = this.slipFactor; //Make friction work against itself
+            }
+            
+            if(object.setXAcl === undefined)
+            {
+                object.setXAcl = object.xAcl;
+            }
+            
+            //The restraining of trying to go the other way on ice
+            if(abs(object.xVel) <= object.maxXVel && abs(object.xVel) > 0)
+            {
+                object.xAcl = object.setXAcl * 0.15;
+            }
+        }
+    };
+};
+gameObjects.addObject("ice", createArray(Ice));
+
+var Ladder = function(xPos, yPos, width, height, colorValue)
+{
+    Rect.call(this, xPos, yPos, width, height, colorValue);
+    this.physics.solidObject = false;
+    this.type = "use";
+    
+    this.draw = function()
+    {
+        var lines = 4;
+        stroke(0, 0, 0);
+        strokeWeight(1);
+        var spacing = this.height / lines;
+        for(var i = 0; i < lines; i++)
+        {
+           line(this.xPos, this.yPos + i * spacing, 
+           this.xPos + this.width, this.yPos + i * spacing);
+        }
+        var spacing2 = spacing * 2;
+        for(var i = 0; i < lines / 2; i++)
+        {
+            line(this.xPos, this.yPos + i * 2 * spacing, 
+                 this.xPos, this.yPos + (i * 2 + 1) * spacing);
+                 
+            line(this.xPos + this.width - 1, this.yPos + (i * 2 - 1) * spacing + spacing * 2, 
+                 this.xPos + this.width - 1, this.yPos + (i * 2) * spacing + spacing * 2);
+        }
+    };
+    
+    this.onCollide = function(object)
+    {
+        if(object.type === "lifeform")
+        {
+            object.inAir = false;
+            object.onLadder = true;
+        }
+    };
+    
+    screenUtils.loadImage(this, true, "ladder", true);
+};
+gameObjects.addObject("ladder", createArray(Ladder));
+
 var Spring = function(xPos, yPos, width, height, colorValue)
 {
     Rect.call(this, xPos, yPos, width, height);
     this.color = colorValue || color(0, 150, 80);
-    this.boost = 15;
+    this.boost = 12; //13
     this.xBoost = this.boost;
     this.yBoost = this.boost;
+    this.type = "block";
 
     this.draw = function()
     {
@@ -3135,6 +3590,7 @@ var Sign = function(xPos, yPos, width, height, colorValue, message, textColor, f
     this.message = message || "This is a sign";
     this.textColor = textColor;
     this.physics.solidObject = false;
+    this.type = "use";
 
     this.halfWidth = this.width / 2;
     this.halfHeight = this.height / 2;
@@ -3236,7 +3692,8 @@ var Door = function(xPos, yPos, width, height, colorValue)
     this.physics.solidObject = false;
     this.color = colorValue || color(58 - 30, 175 - 30, 67 - 30);//color(56, 140, 56);//color(76, 140, 76);
     this.goto = {};
-
+    this.type = "use";
+    
     this.draw = function()
     {
         fill(this.color);
@@ -3344,13 +3801,13 @@ var Key = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("key", createArray(Key));
 
-var CheckPoint = function(xPos, yPos, width, height, colorValue)
+var CheckPoint = function(xPos, yPos, width, height, colorValue, invisible)
 {
     Rect.call(this, xPos, yPos, width, height);
     this.physics.solidObject = false;
     this.green = color(28, 156, 30);
     this.color = colorValue || color(200, 0, 0);
-
+    this.type = "use";
     this.xDiv = this.width * 0.2;
     this.xOff = this.width * 0.13;
     //this.flagX = this.xPos + this.xOff + this.xDiv;
@@ -3359,6 +3816,7 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue)
     this.flagRightX2 = this.width * 0.7 + this.xDiv;
     this.midY = this.yPos + this.height / 4;
     this.bottomY = this.yPos + this.height / 2;
+    this.invisible = invisible;
     
     this.loadImg = function(colorValue)
     {
@@ -3376,6 +3834,7 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue)
     
     this.draw = function()
     {
+        
         if(storedImages.redFlag === undefined)
         {
             storedImages.redFlag = this.loadImg(color(200, 0, 0));
@@ -3387,12 +3846,16 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue)
         
         this.draw = function()
         {
-           if(this.color !== color(200, 0, 0))
-           {
-               image(storedImages.flag, this.xPos, this.yPos);
-           }else{
-               image(storedImages.redFlag, this.xPos, this.yPos);
-           }
+            if(this.invisible)
+            {
+                return;  
+            }
+            if(this.color !== color(200, 0, 0))
+            {
+                image(storedImages.flag, this.xPos, this.yPos);
+            }else{
+                image(storedImages.redFlag, this.xPos, this.yPos);
+            }
         };
     };
     
@@ -3404,9 +3867,10 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue)
         this.checked = true;
         this.color = this.green;
     };
+    
     this.onCollide = function(object)
     {
-        if(object.useCheckPoint !== undefined && object.useCheckPoint())
+        if(!this.invisible && object.useCheckPoint !== undefined && object.useCheckPoint())
         {
             this.setObjectProps(object);
         }
@@ -3414,25 +3878,268 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("checkPoint", createArray(CheckPoint));
 
+var Cast = function(xPos, yPos, diameter, objectArrayName, inform, setPos)
+{
+     Circle.call(this, xPos, yPos, diameter);
+     this.physics.solidObject = false;
+     this.physics.shape = "point";
+     
+     this.xVel = 0;
+     this.yVel = 0;
+     
+     this.boundingBox.off = true;
+     this.physics.movement = "dynamic";
+     
+     this.timer = 0;
+     this.time = 50;
+
+     this.objectArrayName = objectArrayName;
+     this.inform = inform;
+     this.setPos = setPos;
+     
+     this.onKill = function()
+     {
+         if(this.setPos === undefined)
+         {
+             this.remove();
+         }else{
+             this.setPos(this); 
+             this.timer = 0;
+         }
+     };
+     
+     this.update = function()
+     {
+         if(this.xVel !== 0)
+         {
+             this.xPos += this.xVel;
+             if(constrain(this.xPos, cam.focusXPos - cam.halfWidth, cam.focusXPos + cam.halfWidth) !== this.xPos)
+             {
+                 this.timer = this.time + 1;
+             }
+         }
+         if(this.yVel !== 0)
+         {
+             this.yPos += this.yVel;
+             if(constrain(this.yPos, cam.focusYPos - cam.halfHeight, cam.focusYPos + cam.halfHeight) !== this.yPos)
+             {
+                 this.timer = this.time + 1;
+             }
+         }
+         this.timer++;
+         if(this.timer > this.time)
+         {
+             this.onKill();  
+         }
+     };
+     
+     this.onCollide = function(object)
+     {    
+         if(object.arrayName !== this.objectArrayName && object.arrayName !== "water")
+         {
+             if(this.inform !== undefined)
+             {
+                 this.inform(object);  
+             }
+             this.onKill();
+         }
+     };
+};
+gameObjects.addObject("cast", createArray(Cast));
+
+var Enemy = function(xPos, yPos, width, height, colorValue)
+{
+    DynamicRect.call(this, xPos, yPos, width, height);
+    LifeForm.call(this, 0.2); //Inherit from life form width LifeForm.call(this, hp, notNormalDeath);
+    this.color = colorValue || color(red(-166344), green(-166344), blue(-166344), 150);//-166344;
+    this.damage = 2.5;
+    
+    var self = this;
+    gameObjects.getObject("cast").add(this.xPos + this.width / 2, this.yPos + this.height / 2, 3, "enemy", function(object)
+    {
+        self.hitObjectArrayName = object.name;   
+    }, 
+    function(cast)
+    {
+        cast.xPos = self.xPos + self.width / 2;  
+        cast.yPos = self.yPos + self.height / 2;  
+    });
+    
+    this.cast = gameObjects.getObject("cast").getLast();
+    
+    this.trigHeight = this.height / 2;
+    this.origHeight = this.height;
+    
+    this.xDir = (random(0, 100) > 50) ? "left" : "right";
+    this.yDir = "";
+    
+    this.task = "patrol";
+    
+    this.maxXVel = 1;
+    
+    var self = this;
+    this.controls = {
+        left : function() 
+        {
+            return (self.xDir === "left");
+        },
+        right : function() 
+        {
+            return (self.xDir === "right");
+        },
+        up : function() 
+        {  
+            return (self.yDir === "up");
+        },
+        down : function() {},
+    };
+    
+    this.handlePlayer = function(object)
+    {
+        if(object.yPos + object.height > this.yPos + abs(object.yVel))
+        {
+            object.hp -= this.damage;
+        }else{
+            this.hp -= (object.damage || 0.1); 
+            object.yVel = -(object.jumpHeight || 1) / 2;
+        }
+    };
+    this.handleEnemy = function(object, info)
+    {
+        if((info.side === "left" || info.side === "right") && 
+        this.xDir === "left" && object.xDir === "right")
+        {
+            this.xDir = "right";
+            this.xVel = 0;
+            object.xDir = "left";
+            object.xVel = 0;
+        }
+    };
+    this.handleBlock = function(object, info)
+    {
+        if(info.side === "left" || info.side === "right")
+        {
+            this.xDir = info.side; //If this ran into a block, go the other way
+        }
+        else if(info.side === "up")
+        {
+            this.blocksBelow++;
+            this.block = object; 
+        }
+    };
+    this.handleEdges = function()
+    {
+        //If this is approaching the edge of the block, go the other way
+        if(this.blocksBelow === 1 && this.block !== undefined)
+        {
+            var inBetweenX = this.xPos + this.width / 2;
+            if(inBetweenX <= this.block.xPos)
+            {
+                this.xDir = "right";
+            }
+            else if(inBetweenX >= this.block.xPos +  this.block.width)
+            {
+                this.xDir = "left";
+            }
+        }
+    };
+    this.handleBorders = function()
+    {
+        if(this.xPos <= levelInfo.xPos)
+        {
+            this.xDir = "right";
+        }
+        else if(this.xPos + this.width >= levelInfo.xPos + levelInfo.width)
+        {
+            this.xDir = "left";  
+        }
+    };
+    this.chargeTimer = 0;
+    this.chargeTime = 100;
+    
+    this.remove = function()
+    {
+        this.cast.remove();
+        this.delete = true; 
+    };
+    
+    this.lastUpdate = this.update;
+        
+    this.simpleUpdate = function()
+    {
+        var lastHeight = this.height;
+        this.height = (this.origHeight - this.trigHeight) + (this.hp * this.trigHeight / this.maxHp);
+        this.yPos += abs(lastHeight - this.height);        
+        this.boundingBox.height = this.height;
+        this.blocksBelow = 0;                              
+                
+        this.lastUpdate();
+    };
+
+    this.update = function()
+    {
+        this.handleEdges();
+        this.handleBorders();
+        
+        if(this.hitObjectArrayName === "player")
+        {
+            this.task = "charge";
+            this.chargeTimer = this.chargeTime;
+        }
+
+        if(this.task === "charge")
+        {
+            this.chargeTimer--;
+            if(this.chargeTimer < 0)
+            {
+                this.task = "patrol";   
+            }
+        }
+        
+        var speed = this.maxXVel + 10;
+        this.cast.time = 15;
+        this.cast.xVel = (this.xDir === "left") ? -speed : speed; 
+        //this.cast.yVel = round(random(-6, 6)); 
+        this.maxXVel = (this.task === "charge") ? 3 : 1;
+        this.hitObjectArrayName = undefined;
+        
+        this.simpleUpdate();
+    };
+    
+    this.onCollide = function(object, info)
+    {
+        switch(true)
+        {
+            case (object.arrayName === "player") :
+                this.handlePlayer(object);
+                break;
+                
+            case (object.type === "block" && object.arrayName !== "crate") :
+                this.handleBlock(object, info);
+                break;
+                
+            case (object.arrayName === "slope") :
+                this.yVel = -1;
+                break;
+                
+            case (this.arrayName === object.arrayName) :
+                this.handleEnemy(object, info);
+                break;
+        }
+    };
+};
+gameObjects.addObject("enemy", createArray(Enemy));
+
 var Player = function(xPos, yPos, width, height, colorValue)
 {
-    Rect.call(this, xPos, yPos, width, height);
-    DynamicObject.call(this);
-
-    this.type = "lifeform";
-    this.color = colorValue;
-
-    this.xAcl = 1.5 * 0.75;//0.7
-    this.xDeacl = 0.2 * 0.3;//0.3
-    this.maxXVel = 4 * 0.75;//0.7
-
-    this.maxYVel = 14 * 0.75;
-    this.gravity = 0.325;//0.55 * 0.5; 0.3
-    this.jumpHeight = 12.5 * 0.75;
-
+    DynamicRect.call(this, xPos, yPos, width, height);
+    LifeForm.call(this, 5, true); //Inherit from life form width LifeForm.call(this, hp, notNormalDeath);
+    
+    this.restart = false;
     this.coins = 0;
     this.score = 0;
-    this.swimSpeed = 2;
+    this.damage = 0.1;
+    this.xAcl = 0.35;
     
     this.controls = {
         left : function()
@@ -3453,22 +4160,24 @@ var Player = function(xPos, yPos, width, height, colorValue)
         },
     };
 
-    this.maxHp = 5;
-    this.hp = this.maxHp;
     this.imageName = "spaceman";
     this.marchTimer = 0;
     this.marchTime = 30;
     this.splitMarchTime = this.marchTime / 3;
     
-    this.revive = function()
+    this.handleDeath = function()
     {
-        this.dead = false;
-        this.hp = this.maxHp;
+        if(this.goto.checkPointLevel !== undefined)
+        {
+            this.goto.travelType = "checkPoint";
+        }
+       
+        loader.startLoadLevel(this.goto.checkPointLevel || levelInfo.level);
     };
-    
+
     this.draw = function()
     {
-        var img = "suit";//spaceman
+        var img = "suit";
         if(this.xVel > this.xAcl)
         {
             if(!this.inAir)
@@ -3494,84 +4203,16 @@ var Player = function(xPos, yPos, width, height, colorValue)
         image(storedImages[this.imageName], this.xPos, this.yPos, this.width, this.height);
     };
 
-    this.handleDeath = function()
-    {
-        /*Specific code*/
-        if(this.goto.checkPointLevel !== undefined)
-        {
-            this.goto.travelType = "checkPoint";
-        }
-       
-        loader.startLoadLevel(this.goto.checkPointLevel || levelInfo.level);
-    };
-
-    this.restart = false;
+    this.lastUpdate = this.update;
     this.update = function()
     {
-        if(this.controls.left())
+        /*Specific code*/
+        if(!this.added)
         {
-            this.xVel -= this.xAcl;
-        }
-        if(this.controls.right())
-        {
-            this.xVel += this.xAcl;
-        }
-
-        if(!this.controls.left() && !this.controls.right())
-        {
-            var xDeacl = ((this.inAir) ? this.xDeacl * 0.75  : this.xDeacl);
-            if(this.inAir)
-            {
-                if(this.xVel > 0)
-                {
-                    this.xVel += this.xAcl * 0.05;
-                }
-                if(this.xVel < 0)
-                {
-                    this.xVel -= this.xAcl * 0.05;
-                }
-            }
-            if(this.xVel > 0)
-            {
-                this.xVel -= xDeacl;
-            }
-            if(this.xVel < 0)
-            {
-                this.xVel += xDeacl;
-            }
-
-            if(this.xVel > -xDeacl && this.xVel < xDeacl)
-            {
-                this.xVel = 0;
-            }
-        }
-
-        if(this.controls.up())
-        {
-            if(this.inLiquid)
-            {
-                this.yVel = -this.swimSpeed; 
-            }
-            else if(!this.inAir)
-            {
-                this.yVel = -this.jumpHeight;
-            }
+            travelObjects.add(this);
+            this.added = true;
         }
         
-        if(this.controls.down())
-        {
-            if(this.inLiquid)
-            {
-                this.yVel += this.swimSpeed / 2; 
-            }
-        }
-
-        //If it fell out of the level restart the level
-        if(this.yPos >= levelInfo.yPos + levelInfo.height || this.hp <= 0)
-        {
-            this.dead = true;
-        }
-
         //Restart key 'r' spam protection
         if(!this.restart && !keys[82])
         {
@@ -3583,16 +4224,8 @@ var Player = function(xPos, yPos, width, height, colorValue)
             this.handleDeath();
             this.restart = false;
         }
-
-        this.updateVel();
-        this.updateBoundingBox();
-
-        /*Specific code*/
-        if(!this.added)
-        {
-            travelObjects.add(this);
-            this.added = true;
-        }
+        
+        this.lastUpdate();
     };
 
     /*Specific code*/
@@ -3614,6 +4247,7 @@ var Player = function(xPos, yPos, width, height, colorValue)
     this.updateBoundingBox = object.updateBoundingBox;
 };
 gameObjects.addObject("player", createArray(Player));
+gameObjects.findOrder();
 
 var levels = {
     "intro" : {
@@ -3679,7 +4313,7 @@ var levels = {
             'f' : {
                 message : "You've finished\nthe tutorial level!",
                 color : color(100, 100, 100),
-                adjustY : -20,
+                adjustY : -40,
                 adjustW : 100,
                 adjustH : 35,
             },
@@ -3716,7 +4350,7 @@ var levels = {
             },
         },
         plan : [ 
-            "   p                                                ",
+            "                                                    ",
             "                                                    ",
             "                                                    ",
             "                                                    ",
@@ -3728,7 +4362,7 @@ var levels = {
             "                      ddddddddddddddddd             ",
             "                      dddddddddddd   f   g         e",
             "   a   b       c   a  dddddddddddD   S   S         D",
-            "   S   S   f   S   D  ddddddddddddddddddddd##dd#dddd",
+            "p  S   S   f   S   D  ddddddddddddddddddddd##dd#dddd",
             "ggggggggggggggggggggggddddddddddd##dddddd###dddddddd",
         ],
     },
@@ -3740,20 +4374,21 @@ var levels = {
             },
         },
         plan : [
-            "                          ",
-            "                          ",
-            "                          ",
-            "                          ",
-            "                          ",
-            "                          ",
-            "                          ",
-            "                          ",
-            "                          ",
-            "        FFF               ",
-            "a                         ",
-            "D  p                      ",
-            "gggggbbbgggggbbbgggggggggg",
-            "dddddddddddddddddddddddddd",
+            "                                                   ",
+            "                                                   ",
+            "                                                   ",
+            "      UFFFFFFFFFF                                  ",
+            "      U                            b     mbbbb     ",
+            "      U                                            ",
+            "      U                                            ",
+            "                                                   ",
+            "          e                                        ",
+            "          bbbb                            M        ",
+            "                                                   ",
+            "a                                                  ",
+            "D                   b  e  b       b        m       ",
+            "ggggggggggggbbbbbbbggggggggbbbggggggssggggggggggggg",
+            "dddddddddddddd###dddddwwwdddddddddddddddddddddddddd",
         ],
     },
     "test" : {
@@ -3816,7 +4451,7 @@ levels.setObjectAtDoor = function(object, xPos, yPos, symbol)
 levels.setPlayer = function(xPos, yPos, colorValue)
 {
     //Init with a checkPoint
-    gameObjects.getObject("checkPoint").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+    gameObjects.getObject("checkPoint").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, undefined, true);
     if(gameObjects.getObject("player").length <= 0)
     {
         gameObjects.getObject("player").add(xPos, yPos - abs(levelInfo.unitHeight * 2 - levelInfo.unitHeight), levelInfo.unitWidth, levelInfo.unitHeight * 2, colorValue);
@@ -3828,11 +4463,19 @@ levels.setPlayer = function(xPos, yPos, colorValue)
 levels.build = function(plan)
 {
     var level = this[plan.level];
-    levelInfo.width = level.plan[0].length * levelInfo.unitWidth;
-    levelInfo.height = level.plan.length * levelInfo.unitHeight;
-    backgrounds.setBackground(level.background);
-
-    for(var row = 0; row < level.plan.length; row++)
+    
+    if(plan.first)
+    {
+        levelInfo.width = level.plan[0].length * levelInfo.unitWidth;
+        levelInfo.height = level.plan.length * levelInfo.unitHeight;
+        backgrounds.setBackground(level.background);
+    }
+    
+    var done = false;
+    var start = max((plan.minRow || 0), 0);
+    var end = min((plan.maxRow || level.plan.length), level.plan.length);
+    
+    for(var row = start; row < end; row++)
     {
         for(var col = 0; col < level.plan[row].length; col++)
         {
@@ -3873,11 +4516,27 @@ levels.build = function(plan)
                 case 'w' : 
                     gameObjects.getObject("water").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
+               
+                case 'W' : 
+                    gameObjects.getObject("water").add(xPos - levelInfo.unitWidth, yPos - levelInfo.unitHeight, levelInfo.unitWidth * 3, levelInfo.unitHeight * 3);
+                    break;
+                    
+                case 'i' :
+                    gameObjects.getObject("ice").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
                 
                 case '#' :
                     gameObjects.getObject("lava").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
-
+                
+                case 'e' :
+                    gameObjects.getObject("enemy").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+                    
+                case 'U' :
+                    gameObjects.getObject("ladder").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+                    
                 case 'n' : 
                     gameObjects.getObject("movingLava").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     gameObjects.getObject("movingLava").getLast().xSpeed = 2;
@@ -3895,7 +4554,7 @@ levels.build = function(plan)
                 case 'P' : 
                     gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(20, 20, 200), "up", true);
                     break;
-
+                
                 case 'x' :
                     gameObjects.getObject("crate").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
@@ -3915,7 +4574,7 @@ levels.build = function(plan)
                     break;
                     
                 case 'h' :
-                    gameObjects.getObject("hpCoin").add(xPos + levelInfo.unitWidth / 4, yPos + levelInfo.unitHeight / 4, levelInfo.unitWidth / 2);
+                    gameObjects.getObject("hpCoin").add(xPos + levelInfo.unitWidth / 4, yPos + levelInfo.unitHeight / 4, levelInfo.unitWidth / 2, 0, 3);
                     break;
 
                 case 'o' :
@@ -3951,7 +4610,7 @@ levels.build = function(plan)
                         'l' : "leftup",
                         'r' : "rightup",
                         'L' : "leftdown",
-                        'R' : "rightdown"
+                        'R' : "rightdown",
                     }[level.plan[row][col]]);
                     break;
                     
@@ -4020,13 +4679,25 @@ levels.build = function(plan)
                     }
                     break;
             }
+            done = (row >= level.plan.length - 1);
         }
     }
+    return done;
 };
 
 game.startFade = function(top)
 {
     screenUtils.fade.start(20, (top) ? 20 : 0);
+};
+loader.setProps = function(level)
+{
+    this.loops = 0;
+    this.levelStepRows = 1;
+    //+ The amount of steps - 1 that we can not calculate
+    this.estLoops = (levels[level].plan.length / this.levelStepRows) + 4;
+    this.point = 0;
+    this.step = 0;
+    this.returned = {};
 };
 loader.startLoadLevel = function(level)
 {
@@ -4035,24 +4706,59 @@ loader.startLoadLevel = function(level)
     screenUtils.needsScreenShot = true;
     game.tempState = game.gameState;
     game.gameState = "load";
+    loader.setProps(level);
 };
-loader.loadLevel = function(level)
+loader.loadLevel = function(level, step, levelStep)
 {
-    levelInfo.level = level;
-    gameObjects.removeObjects();
-    levels.build({
-        level : level,
-    });
-    cameraGrid.setup(levelInfo.xPos, levelInfo.yPos, levelInfo.width / levelInfo.cellWidth, levelInfo.height / levelInfo.cellHeight, levelInfo.cellWidth, levelInfo.cellHeight);
-    gameObjects.addObjectsToCameraGrid();
-    backgrounds.load();
-    
-    //Player specific code
-    cam.attach(function()
+    var toReturn = {};
+    this.loops++;
+    switch(step)
     {
-        return gameObjects.getObject("player").input(0);
-    }, true);
-    gameObjects.getObject("player").input(0).revive();
+        case 0 :
+            levelInfo.level = level;
+            gameObjects.removeObjects();
+            break;
+        
+        case 1 :
+            //levels.build({
+            //    level : level,
+            //    first : true,
+            //});
+            if(!levels.build({
+                level : level,
+                minRow : this.levelStepRows * levelStep,
+                maxRow : this.levelStepRows * (levelStep + 1),
+                first : (levelStep === 0),
+            }))
+            {
+                toReturn = {
+                   setStep : 1, 
+                   levelStep : levelStep + 1,
+                };
+            }
+            break;
+        
+        case 2 :
+            cameraGrid.setup(levelInfo.xPos, levelInfo.yPos, levelInfo.width / levelInfo.cellWidth, levelInfo.height / levelInfo.cellHeight, levelInfo.cellWidth, levelInfo.cellHeight);
+            gameObjects.addObjectsToCameraGrid();
+            break;
+            
+        case 3 :
+            backgrounds.load();
+            break;
+            
+        case 4 :
+            cam.attach(function()
+            {
+                return gameObjects.getObject("player").input(0);
+            }, true);
+            gameObjects.getObject("player").input(0).revive();
+            toReturn = {
+               loaded : true,
+            };
+            break;
+    }
+    return toReturn;
 };
 loader.update = function()
 {
@@ -4061,26 +4767,29 @@ loader.update = function()
         backgrounds.primeLoad();
         buttons.load();
     }
-    if(screenUtils.fade.full())
+    if(screenUtils.fade.full() || (!this.tempLoaded && this.step >= 1))
     {
-        this.loadLevel(this.level);
-        if(!this.firstLoad)
+        this.returned = this.loadLevel(this.level, this.step, (this.returned.levelStep || 0));
+        this.tempLoaded = this.returned.loaded;
+        this.step++;
+        if(this.returned.setStep !== undefined)
+        {
+            this.step = this.returned.setStep;  
+        }
+        screenUtils.fade.stopped = !this.tempLoaded;
+        if(!this.firstLoad && this.tempLoaded && game.tempState !== "menu")
         {
             game.play();
-        }else{
-            textAlign(CENTER, CENTER);
-            textSize(20);
-            fill(0, 0, 0, 100);
-            text("Loading", 200, 200);
+            screenUtils.screenShot = get(0, 0, width, height);
         }
-        screenUtils.screenShot = get(0, 0, width, height);
         this.firstLoad = false;
     }
     if(!screenUtils.fade.fading)
     {
-        game.gameState = (game.tempState !== "load") ? game.tempState : "play"; 
+        this.tempLoaded = false;
+        game.gameState = (game.tempState !== "load") ? game.tempState : "play";
     }
-    if(screenUtils.screenShot !== undefined)
+    if(screenUtils.screenShot !== undefined && !screenUtils.fade.full())
     {
         image(screenUtils.screenShot, 0, 0);
     }
@@ -4100,7 +4809,7 @@ game.switchGameState = function(condition, state, needsScreenShot)
         this.switchState = state;
         if(needsScreenShot)
         {
-             screenUtils.needsScreenShot = true;
+            screenUtils.needsScreenShot = true;
         }
     }
 };
@@ -4113,6 +4822,7 @@ game.pauseMenu = function()
     text("Paused", 200, 110);
     fill(0, 0, 0, 60);
     rect(75, 0, width - 75 * 2, height);
+    cursor(ARROW);
     
     buttons.back.draw();
     this.switchGameState(buttons.back.clicked(), "play");
@@ -4135,7 +4845,12 @@ game.how = function()
     rect(100, 100, 200, 210, 10);
     fill(200, 200, 200, 150);
     textAlign(NORMAL, NORMAL);
-    text("  Use the arrow keys to move or wasd. Press down to go through doors or to activate checkpoints. Press 'p' to pause, 'r' to restart, 't' to print what the sign says if you can't read it and 'm' to go directly to the menu.\n\n   This is Planet Search 2 If you haven't played the first one please play it right now.\n\n        Created by ProlightHub", 110, 115, 200, 225);
+    text("  Use the arrow keys to move or wasd." +
+    "Press down to go through doors or to activate checkpoints." +
+    " Press 'p' to pause, 'r' to restart, 't' to print what the" +
+    "sign says if you can't read it and 'm' to go directly to the menu." +
+    "\n\n   This is Planet Search 2 If you haven't played the first " +
+    "one please play it right now.\n\n        Created by ProlightHub", 110, 115, 200, 225);
     fill(0, 0, 0, 100);
     text(game.version, 334, 394); 
     buttons.back2.draw();
@@ -4152,13 +4867,36 @@ game.settings = function()
     buttons.back2.draw();
     this.switchGameState(buttons.back2.clicked(), "extras");
     buttons.debugMode.draw();
-    buttons.debugMode.message = "debugMode " + game.debugMode;
+    buttons.debugMode.message = "DebugMode " + game.debugMode;
+    buttons.debugPhysics.draw();
+    buttons.debugPhysics.message = "DebugPhysics " + (game.showDebugPhysics || false);
+    buttons.boundingBoxes.draw();
+    buttons.boundingBoxes.message = "BoundingBoxes " + (game.boundingBoxes || false);
+    buttons.info.draw();
+    
+    if(buttons.info.clicked())
+    {
+        noStroke();
+        rect(100, 340, 200, 40, 10);
+        textAlign(CENTER, NORMAL);
+        fill(200, 200, 200, 200);
+        textSize(11);
+        text("In debug mode you can press right click to show the Cartesian System (Grid).", 100, 350, 200, 40);
+    }
 };
 game.settings.mousePressed = function()
 {
     if(buttons.debugMode.clicked())
     {
         game.debugMode = !game.debugMode;
+    }
+    if(buttons.debugPhysics.clicked())
+    {
+        game.showDebugPhysics = !game.showDebugPhysics;
+    }
+    if(buttons.boundingBoxes.clicked())
+    {
+        game.boundingBoxes = !game.boundingBoxes;
     }
 };
 game.extras = function()
@@ -4211,9 +4949,10 @@ game.play = function()
     cam.view();
     backgrounds.drawForeground();
     gameObjects.apply();
-    //gameObjects.drawBoundingBoxes();
+    gameObjects.drawBoundingBoxes();
     //cameraGrid.draw();
     //cam.draw();
+    screenUtils.debugCameraGrid.draw();
     popMatrix();
     //cam.drawOutline();
     
