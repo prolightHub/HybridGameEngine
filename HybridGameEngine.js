@@ -112,9 +112,12 @@ var processing = new Processing(canvas, function(processing)
       + Added a loading screen with a percentage. 
          I might turn it off for small loading quantities 
       + The loading Screen now has a bar
+    
+     As of 0.4.1 
+         I've added fire beakers and water beakers   
       
     Future Updates :
-    Then in v0.4.1
+    Then in v0.4.1 #The graphics update
        Now I need to do a revision of the gameObjects. 
     and making sure that they all load their draw function.
     Then I will fix the rendering so that gameObjects render infront and 
@@ -2900,7 +2903,7 @@ var OneWay = function(xPos, yPos, width, height, colorValue, direction, inHerita
     this.color = colorValue;
     this.direction = direction;
     this.physics.sides = {};
-
+    
     switch(this.direction)
     {
         case "left" :
@@ -3000,7 +3003,6 @@ var FallingBlock = function(xPos, yPos, width, height, colorValue)
     
     this.update = function()
     {
-          
         if(this.activated)
         {
             this.timer++; 
@@ -3086,7 +3088,7 @@ var MovingPlatform = function(xPos, yPos, width, height, colorValue, direction, 
         triangle(this.xPos, this.yPos, this.xPos + this.width, this.yPos, this.xPos, this.yPos + this.height);
     };
     
-    screenUtils.loadImage(this, true, "movingPlatform");
+    screenUtils.loadImage(this, true, "movingPlatform" + this.color);
     this.updateBoundingBox = function()
     {     
         if(this.outerXVel !== 0)
@@ -3251,10 +3253,10 @@ var Lava = function(xPos, yPos, width, height, colorValue, damage)
     this.num = round(random(0, 1000));
     screenUtils.loadImage(this, true, "lava" + this.num);
 
-    this.damage = damage || 0.08;
+    this.damage = damage || 0.1;//0.08;
     this.onCollide = function(object)
     {
-        if(object.type === "lifeform")
+        if(object.type === "lifeform" && !object.lavaImmune)
         {
             object.hp -= this.damage;
         }
@@ -3293,6 +3295,7 @@ var Water = function(xPos, yPos, width, height, colorValue)
     
     this.type = "liquid";
     this.thickness = 1.405;
+    this.damage = 0.1;
     
     this.onCollide = function(object)
     {
@@ -3491,7 +3494,7 @@ var Ice = function(xPos, yPos, width, height, colorValue, slipFactor)
             //The restraining of trying to go the other way on ice
             if(abs(object.xVel) <= object.maxXVel && abs(object.xVel) > 0)
             {
-                object.xAcl = object.setXAcl * 0.15;
+                //object.xAcl = object.setXAcl * 0.15;
             }
         }
     };
@@ -3834,14 +3837,13 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue, invisible)
     
     this.draw = function()
     {
-        
         if(storedImages.redFlag === undefined)
         {
             storedImages.redFlag = this.loadImg(color(200, 0, 0));
         }
         if(storedImages.flag === undefined)
         {
-            storedImages.flag = this.loadImg(this.color);
+            storedImages.flag = this.loadImg(this.green || this.color);
         }
         
         this.draw = function()
@@ -3908,6 +3910,8 @@ var Cast = function(xPos, yPos, diameter, objectArrayName, inform, setPos)
          }
      };
      
+     this.draw = function() {};
+     
      this.update = function()
      {
          if(this.xVel !== 0)
@@ -3947,25 +3951,36 @@ var Cast = function(xPos, yPos, diameter, objectArrayName, inform, setPos)
 };
 gameObjects.addObject("cast", createArray(Cast));
 
-var Enemy = function(xPos, yPos, width, height, colorValue)
+var Enemy = function(xPos, yPos, width, height, colorValue, props)
 {
     DynamicRect.call(this, xPos, yPos, width, height);
     LifeForm.call(this, 0.2); //Inherit from life form width LifeForm.call(this, hp, notNormalDeath);
     this.color = colorValue || color(red(-166344), green(-166344), blue(-166344), 150);//-166344;
-    this.damage = 2.5;
+    this.damage = 1.0;//2.5 is the default
     
-    var self = this;
-    gameObjects.getObject("cast").add(this.xPos + this.width / 2, this.yPos + this.height / 2, 3, "enemy", function(object)
+    this.addCast = function(self, arrayName)
     {
-        self.hitObjectArrayName = object.name;   
-    }, 
-    function(cast)
-    {
-        cast.xPos = self.xPos + self.width / 2;  
-        cast.yPos = self.yPos + self.height / 2;  
-    });
+        gameObjects.getObject("cast").add(self.xPos + self.width / 2, self.yPos + self.height / 2, 3, arrayName, function(object)
+        {
+            self.hitObjectArrayName = object.name;   
+        }, 
+        function(cast)
+        {
+            cast.xPos = self.xPos + self.width / 2;  
+            cast.yPos = self.yPos + self.height / 2;  
+        });
+        self.cast = gameObjects.getObject("cast").getLast();
+    };
     
-    this.cast = gameObjects.getObject("cast").getLast();
+    this.props = props || {
+        charging : true,
+        handleEdge : true,
+    };
+    
+    if(this.props.charging && props === undefined)
+    {
+        this.addCast(this, "enemy");  
+    }
     
     this.trigHeight = this.height / 2;
     this.origHeight = this.height;
@@ -3974,6 +3989,7 @@ var Enemy = function(xPos, yPos, width, height, colorValue)
     this.yDir = "";
     
     this.task = "patrol";
+    this.fromEnemy = true;
     
     this.maxXVel = 1;
     
@@ -3996,12 +4012,22 @@ var Enemy = function(xPos, yPos, width, height, colorValue)
     
     this.handlePlayer = function(object)
     {
-        if(object.yPos + object.height > this.yPos + abs(object.yVel))
+        //Can't get this logic right
+        if(object.yPos < this.yPos + this.height &&
+           object.xPos + object.width >= this.xPos + this.width * 0.1 && 
+           object.xPos <= this.xPos + this.width * 0.9)
         {
-            object.hp -= this.damage;
+            if(!this.lastHit)
+            {
+                //Damage enemy
+                this.hp -= (object.damage || 0.1); 
+                object.yVel = -(object.jumpHeight || 1) / 2;
+            }
+            this.lastHit = true;
         }else{
-            this.hp -= (object.damage || 0.1); 
-            object.yVel = -(object.jumpHeight || 1) / 2;
+            //Damage player
+            object.hp -= this.damage;
+            this.lastHit = false;
         }
     };
     this.handleEnemy = function(object, info)
@@ -4029,6 +4055,11 @@ var Enemy = function(xPos, yPos, width, height, colorValue)
     };
     this.handleEdges = function()
     {
+        if(!this.props.handleEdge)
+        {
+            return;
+        }
+        
         //If this is approaching the edge of the block, go the other way
         if(this.blocksBelow === 1 && this.block !== undefined)
         {
@@ -4059,12 +4090,20 @@ var Enemy = function(xPos, yPos, width, height, colorValue)
     
     this.remove = function()
     {
-        this.cast.remove();
+        if(this.cast !== undefined)
+        {
+            this.cast.remove();
+        }
         this.delete = true; 
     };
+          
+    this.draw = function()
+    {
+         fill(this.color);
+         rect(this.xPos, this.yPos, this.width, this.height, 5);
+    };   
     
     this.lastUpdate = this.update;
-        
     this.simpleUpdate = function()
     {
         var lastHeight = this.height;
@@ -4096,12 +4135,17 @@ var Enemy = function(xPos, yPos, width, height, colorValue)
             }
         }
         
-        var speed = this.maxXVel + 10;
-        this.cast.time = 15;
-        this.cast.xVel = (this.xDir === "left") ? -speed : speed; 
+        if(this.cast !== undefined)
+        {
+            this.cast.time = 15;
+            var speed = this.maxXVel + 10;
+            this.cast.xVel = (this.xDir === "left") ? -speed : speed; 
+        }
+        
         //this.cast.yVel = round(random(-6, 6)); 
         this.maxXVel = (this.task === "charge") ? 3 : 1;
         this.hitObjectArrayName = undefined;
+        this.lastHit = false;
         
         this.simpleUpdate();
     };
@@ -4122,13 +4166,49 @@ var Enemy = function(xPos, yPos, width, height, colorValue)
                 this.yVel = -1;
                 break;
                 
-            case (this.arrayName === object.arrayName) :
+            case (this.arrayName === object.arrayName || object.fromEnemy) :
                 this.handleEnemy(object, info);
                 break;
         }
     };
 };
 gameObjects.addObject("enemy", createArray(Enemy));
+
+var FireBeaker = function(xPos, yPos, width, height, colorValue)
+{
+    Enemy.call(this, xPos, yPos, width, height, colorValue || color(166, 110, 49), {
+        handleEdge : true,
+    });
+    
+    this.lavaImmune = true;
+    this.lastOnCollide = this.onCollide;
+    this.onCollide = function(object, info)
+    {
+        if(object.arrayName === "water")
+        {
+            this.hp -= object.damage;
+        }
+        this.lastOnCollide(object, info);
+    };
+};
+gameObjects.addObject("fireBeaker", createArray(FireBeaker));
+
+var WaterBeaker = function(xPos, yPos, width, height, colorValue)
+{
+    Enemy.call(this, xPos, yPos, width, height, colorValue || color(56, 137, 161), {
+        charging : true,
+    });    
+    this.addCast(this, "waterBeaker");
+    
+    this.lastGravity = this.gravity;
+    this.lastUpdate1 = this.update;
+    this.update = function()
+    {
+        this.gravity = (this.inLiquid) ? 0 : this.lastGravity;
+        this.lastUpdate1();
+    };
+};
+gameObjects.addObject("waterBeaker", createArray(WaterBeaker));
 
 var Player = function(xPos, yPos, width, height, colorValue)
 {
@@ -4171,12 +4251,34 @@ var Player = function(xPos, yPos, width, height, colorValue)
         {
             this.goto.travelType = "checkPoint";
         }
-       
+        this.blinking = false;
         loader.startLoadLevel(this.goto.checkPointLevel || levelInfo.level);
     };
 
+    this.setBlink = function()
+    {
+        this.blinking = true;
+        this.blinkTimer = 0;
+        this.blinkTime = 100;
+        this.blinkInterval = 20;
+    };
     this.draw = function()
     {
+        //Manage blinking
+        if(this.blinking)
+        {
+            this.blinkTimer++;
+            if(this.blinkTimer % this.blinkInterval >= this.blinkInterval / 2 - 1 &&
+               this.blinkTimer % this.blinkInterval <= this.blinkInterval - 1)
+            {
+                return;  
+            }
+            if(this.blinkTimer >= this.blinkTime)
+            {
+                this.blinking = false;
+            }
+        }
+        
         var img = "suit";
         if(this.xVel > this.xAcl)
         {
@@ -4381,12 +4483,12 @@ var levels = {
             "      U                            b     mbbbb     ",
             "      U                                            ",
             "      U                                            ",
-            "                                                   ",
-            "          e                                        ",
-            "          bbbb                            M        ",
+            "            e                                      ",
+            "          bbbb                                     ",
+            "                                          M        ",
             "                                                   ",
             "a                                                  ",
-            "D                   b  e  b       b        m       ",
+            "D   f     p  b E e  b              b         m     ",
             "ggggggggggggbbbbbbbggggggggbbbggggggssggggggggggggg",
             "dddddddddddddd###dddddwwwdddddddddddddddddddddddddd",
         ],
@@ -4530,7 +4632,11 @@ levels.build = function(plan)
                     break;
                 
                 case 'e' :
-                    gameObjects.getObject("enemy").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    gameObjects.getObject("fireBeaker").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+                
+                case 'E' :
+                    gameObjects.getObject("waterBeaker").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
                     
                 case 'U' :
@@ -4552,7 +4658,7 @@ levels.build = function(plan)
                     break;
                     
                 case 'P' : 
-                    gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(20, 20, 200), "up", true);
+                    gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(20, 20, 220), "up", true);
                     break;
                 
                 case 'x' :
@@ -4693,7 +4799,7 @@ loader.setProps = function(level)
 {
     this.loops = 0;
     this.levelStepRows = 1;
-    //+ The amount of steps - 1 that we can not calculate
+    //+ The amount of steps - 1, that we can not calculate
     this.estLoops = (levels[level].plan.length / this.levelStepRows) + 4;
     this.point = 0;
     this.step = 0;
@@ -4748,11 +4854,15 @@ loader.loadLevel = function(level, step, levelStep)
             break;
             
         case 4 :
+            var player = gameObjects.getObject("player").input(0);
             cam.attach(function()
             {
-                return gameObjects.getObject("player").input(0);
+                return player;
             }, true);
-            gameObjects.getObject("player").input(0).revive();
+            if(player.dead)
+            {
+                player.revive();
+            }
             toReturn = {
                loaded : true,
             };
