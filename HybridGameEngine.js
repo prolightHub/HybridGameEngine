@@ -133,15 +133,15 @@ var processing = new Processing(canvas, function(processing)
 /////////////////Code///////////////////
 
 var game = {
-    gameState : "menu",
+    gameState : "play",
     fps : 60,
     version : "v0.4.1 beta",
-    debugMode : false, //Turn this to true to see the fps
+    debugMode : true, //Turn this to true to see the fps
     showDebugPhysics : false,
     boundingBoxes : false,
 };
 var levelInfo = {
-    level : "intro",
+    level : "test",
     xPos : 0,
     yPos : 0,
     width : width,
@@ -4952,19 +4952,19 @@ var levels = {
             },
         },
         plan : [
-            "             ",
-            "             ",
-            "             ",
-            "             ",
-            "             ",
-            "             ",
-            "             ",
-            "             ",
-            "             ",
-            "             ",
-            "     a   a   ",
-            "p    D   K   ",
-            "gggggggggggggg",
+            "                                             ",
+            "                                             ",
+            "                                             ",
+            "                                             ",
+            "                                             ",
+            "                                             ",
+            "                                             ",
+            "                                             ",
+            "                                             ",
+            "                                             ",
+            "     a   a                                   ",
+            "p    D   K                                   ",
+            "ggggggggggggggggggggggggggggggggggggggggggggg",
         ],
     },  
 };
