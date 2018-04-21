@@ -2493,10 +2493,20 @@ gameObjects.apply = function()
 
                 /*Keep the cell up to date
                 Note : use this before referencing a cell*/
-                if(object.physics.movement === "dynamic" || object.physics.changes || array.changed)
+                if(object.physics.movement === "dynamic" || object.physics.changes)// || array.changed)
                 {
-                    delete cameraGrid[col][row][i];
-                    cameraGrid.addReference(object);
+                    var place = {};
+                    if(!object.boundingBox.off)
+                    {
+                        place = cameraGrid.getPlace(object.boundingBox.xPos, object.boundingBox.yPos);
+                    }else{
+                        place = cameraGrid.getPlace(object.xPos, object.yPos);
+                    }
+                    if(place.col !== col && place.row !== row)
+                    {
+                        delete cameraGrid[col][row][i];
+                        cameraGrid.addReference(object);
+                    }
                     //array.changed = false;
                 }
                   
