@@ -4943,6 +4943,7 @@ var levels = {
             'a' : {
                 level : "test",
                 symbol : 'a',
+                locked : true,
             },
         },
         keys : {
@@ -4952,6 +4953,8 @@ var levels = {
             },
         },
         plan : [
+            "                                             ",
+            "                                             ",
             "                                             ",
             "                                             ",
             "                                             ",
