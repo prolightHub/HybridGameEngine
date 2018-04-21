@@ -46,7 +46,7 @@ var processing = new Processing(canvas, function(processing)
 /**   Hybrid Game Engine  **/
 /**
     @Author Prolight
-    @Version 0.4.0 beta
+    @Version 0.4.1 beta
 
     @How  :
         Use the arrow keys to move. Down to go through 
@@ -67,7 +67,7 @@ var processing = new Processing(canvas, function(processing)
         you understand.
 **/
 
-    /**
+/**
     Updates  : 
     * v0.0.5 Full Cartesian System in place
     * v0.1.0 Circle and rectangle Physics reached
@@ -111,21 +111,23 @@ var processing = new Processing(canvas, function(processing)
         This is getting close to 5000 lines of code woah!
       + Added a loading screen with a percentage. 
          I might turn it off for small loading quantities 
-      + The loading Screen now has a bar
-    
-     As of 0.4.1 
-         I've added fire beakers and water beakers   
-      
+      + The loading Screen now has a bar  
+    * v0.4.1 
+         +I've added fire beakers and water beakers   
+         +Created ordered rendering
+         +Beakers switch eyes
+         
+     As of 0.4.2 #The more objects update
+       +Added shooters
+       +Shooters now have health 
+       +Crates now drop items
+       +There are now two types of crates, the ones that break and the ones that don't
+         
     Future Updates :
-    Then in v0.4.1 #The graphics update
-       Now I need to do a revision of the gameObjects. 
-    and making sure that they all load their draw function.
-    Then I will fix the rendering so that gameObjects render infront and 
-    behind themselves in a constant order
-    
-      I will add enemies that maybe like beakers in 
-      the first Planet Search. And other enemies.
-    **/
+        I still need to make shooters work in khan academy mode
+        Also I need to make the rectangle collision faster and more precise
+        plus I really need to fix incorrect cell data
+**/
 
 //Feel free to look through the code
 /////////////////Code///////////////////
@@ -133,7 +135,7 @@ var processing = new Processing(canvas, function(processing)
 var game = {
     gameState : "menu",
     fps : 60,
-    version : "v0.4.0 beta",
+    version : "v0.4.1 beta",
     debugMode : false, //Turn this to true to see the fps
     showDebugPhysics : false,
     boundingBoxes : false,
@@ -261,31 +263,31 @@ buttons.load = function()
     }
 };
 
-var Bar = function(x, y, w, h, c, inRound)
+var Bar = function(xPos, yPos, width, height, colorValue, inRound)
 {
-    this.x = x;
-    this.y = y;
-    this.w = w;
-    this.h = h;
-    this.c = c;
+    this.xPos = xPos;
+    this.yPos = yPos;
+    this.width = width;
+    this.height = height;
+    this.color = colorValue;
     
     this.input = 0;
     this.set = function(amt, max)
     {
-        this.input = (this.w * amt) / max;
+        this.input = (this.width * amt) / max;
     };
     
     this.draw = function(amt, max) 
     {
-        fill(this.c);
-        rect(this.x, this.y, (amt !== undefined) ? ((this.w * amt) / max) : this.input, this.h, (inRound || 0));
+        fill(this.color);
+        rect(this.xPos, this.yPos, (amt !== undefined) ? ((this.width * amt) / max) : this.input, this.height, (inRound || 0));
         noFill();
         if(!this.noStroke) 
         { 
             strokeWeight(1);
             stroke(0, 0, 0, 50); 
         }
-        rect(this.x, this.y, this.w, this.h, (inRound || 0));
+        rect(this.xPos, this.yPos, this.width, this.height, (inRound || 0));
         noStroke();
     };
 };
@@ -340,11 +342,11 @@ graphics.inClouds.getSpeed = function()
     var dir = round(random(-1, 1));
     if(dir === -1)
     {
-        speed = -random(0.25, 0.5);
+        speed = -random(0.25, 0.5)/1.5;
     }
     else if(dir === 1)
     {
-        speed = random(0.25, 0.5);
+        speed = random(0.25, 0.5)/1.5;
     }
     else if(dir === 0)
     {
@@ -2170,7 +2172,9 @@ var createArray = function(object, inArray)
         {
             return this[index];
         } else {
-            return new GameObject(0, 0); //{};      
+            var object = new GameObject(0, 0); //{}; 
+            object.fake = true;
+            return object;
         }
     };
     array.getLast = function()
@@ -2288,6 +2292,7 @@ cameraGrid.addReference = function(object)
     }else{
          var place = this.getPlace(object.xPos, object.yPos);
          this[place.col][place.row][object.arrayName + object.index] = toSet;
+         object.place = place;
     }
 };
 cameraGrid.draw = function()
@@ -2457,6 +2462,15 @@ gameObjects.applyCollision = function(objectA)
 };
 gameObjects.apply = function()
 {
+    if(this.renderPlace === undefined)
+    {
+        this.renderPlace = {};
+    }
+    for(var i = 0; i < this.order.length; i++)
+    {
+        this.renderPlace[this.order[i]] = [];
+    }
+    
     var usedObjects = {};
     for(var col = cam.upperLeft.col; col <= cam.lowerRight.col; col++)
     {
@@ -2469,14 +2483,23 @@ gameObjects.apply = function()
                 var object = array.input(cell[i].index);
                 array.applyObject(cell[i].index); //Needed for moving objects around
                  
+                //Delete any refs to objects removed
+                //if(object.fake)
+                //{
+                //    delete cameraGrid[col][row][i];
+                //    array.changed = true; //Tell the array that it has been changed
+                //    continue;
+                //}
+
                 /*Keep the cell up to date
                 Note : use this before referencing a cell*/
-                if(object.physics.movement === "dynamic" || object.physics.changes)
+                if(object.physics.movement === "dynamic" || object.physics.changes || array.changed)
                 {
                     delete cameraGrid[col][row][i];
                     cameraGrid.addReference(object);
+                    //array.changed = false;
                 }
-
+                  
                 //Use the object only once
                 if(!usedObjects[object.arrayName + object.index])
                 {
@@ -2484,11 +2507,32 @@ gameObjects.apply = function()
                     object.lastYPos = object.yPos;
                     object.update();
                     gameObjects.applyCollision(object);
-                    object.draw();
+                    
+                    //object.draw();
+                    if(this.renderPlace[object.arrayName] !== undefined)
+                    {
+                        this.renderPlace[object.arrayName].push(object.index);
+                    }
                 }
                 
                 //Signify that we've used the object for this loop
                 usedObjects[object.arrayName + object.index] = true;
+            }
+        }
+    }
+};
+gameObjects.draw = function()
+{
+    //Render!
+    for(var i = 0; i < this.order.length; i++)
+    {
+        var array = this.getObject(this.order[i]);
+        for(var j = 0; j < this.renderPlace[this.order[i]].length; j++)
+        {
+            var object = array[this.renderPlace[this.order[i]][j]];
+            if(array[this.renderPlace[this.order[i]][j]] !== undefined)
+            {
+                object.draw();
             }
         }
     }
@@ -2850,6 +2894,27 @@ var DynamicRect = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("dynamicRect", createArray(DynamicRect));
 
+var BackBlock = function(xPos, yPos, width, height, colorValue)
+{
+    Rect.call(this, xPos, yPos, width, height);
+    this.color = colorValue || color(0, 0, 0, 150);//color(74, 60, 74);
+    this.physics.solidObject = false;
+    
+    this.draw = function()
+    {
+        fill(this.color); 
+        rect(this.xPos, this.yPos, this.width, this.height, 5);
+        for(var x = 0; x < this.width; x += 30)
+        {
+            for(var y = 0; y < this.height; y += 30)
+            {
+                rect(this.xPos + 5 + x, this.yPos + 5 + y, 20, 20, 5);
+            }
+        }
+    };
+};
+gameObjects.addObject("backBlock", createArray(BackBlock));
+
 var Slope = function(xPos, yPos, width, height, colorValue)
 {
     Rect.call(this, xPos, yPos, width, height);
@@ -2898,7 +2963,7 @@ var OneWay = function(xPos, yPos, width, height, colorValue, direction, inHerita
         DynamicRect.call(this, xPos, yPos, width, height);
     }
 
-    this.type = "platform";
+    this.type = "block";
 
     this.color = colorValue;
     this.direction = direction;
@@ -3067,7 +3132,7 @@ var MovingPlatform = function(xPos, yPos, width, height, colorValue, direction, 
     this.physics.movement = (fixed) ? "static" : "dynamic"; 
     this.boundingBox.maxWidth = WIDTH * 0.5;
     
-    this.type = "platform";
+    this.type = "block";
 
     this.lastUpdate = this.update;
     this.gravity = 0;
@@ -3287,62 +3352,23 @@ var MovingLava = function(xPos, yPos, width, height, colorValue, damage)
 };
 gameObjects.addObject("movingLava", createArray(MovingLava));
 
-var Water = function(xPos, yPos, width, height, colorValue)
-{
-    Rect.call(this, xPos, yPos, width, height, colorValue); 
-    this.color = colorValue || color(40, 103, 181, 150);
-    this.physics.solidObject = false;
-    
-    this.type = "liquid";
-    this.thickness = 1.405;
-    this.damage = 0.1;
-    
-    this.onCollide = function(object)
-    {
-        if(object.physics.movement === "dynamic")
-        {
-            object.yVel = object.yVel / this.thickness;
-            object.xVel = object.xVel / this.thickness;
-            object.inLiquid = true;
-            object.inAir = false;
-        }
-    };
-};
-gameObjects.addObject("water", createArray(Water));
-
-var Crate = function(xPos, yPos, width, height, colorValue)
-{
-    DynamicRect.call(this, xPos, yPos, width, height, colorValue || color(190, 160, 84));
-
-    this.breakPercent = 0;
-    this.breakRate = 0.05;
-    this.xDeacl = 0.35; //Turn this up for less glitches
-    this.type = "block";
-    
-    this.draw = function()
-    {
-        fill(this.color);
-        rect(this.xPos, this.yPos, this.width, this.height);
-
-        fill(this.color, this.color, this.color, 20);
-        rect(this.xPos + this.width * 0.15, this.yPos + this.height * 0.15, this.width * 0.65, this.height * 0.65);
-
-        fill(0, 0, 0, 50);
-        triangle(this.xPos, this.yPos, this.xPos + this.width, this.yPos, this.xPos, this.yPos + this.height);
-    };
-
-    screenUtils.loadImage(this, true, "crate");
-};
-gameObjects.addObject("crate", createArray(Crate));
-
 var Coin = function(xPos, yPos, diameter, colorValue, amt)
 {
     Circle.call(this, xPos, yPos, diameter);
-    this.color = colorValue || color(184, 194, 75, 150);
+    this.color = colorValue || color(184, 194, 75, 200);
     this.amt = amt || 1;
     this.score = this.amt * 100;
     this.physics.solidObject = false;
     this.type = "item";
+    
+    this.lastDraw = this.draw;
+    this.draw = function()
+    {  
+        //Shadow splash
+        fill(0, 0, 0, 50);
+        ellipse(this.xPos, this.yPos, this.diameter * 1.3, this.diameter * 1.3);
+        this.lastDraw();
+    };
     
     this.onCollide = function(object)
     {
@@ -3359,11 +3385,20 @@ gameObjects.addObject("coin", createArray(Coin));
 var HpCoin = function(xPos, yPos, diameter, colorValue, amt)
 {
     Circle.call(this, xPos, yPos, diameter);
-    this.color = colorValue || color(75, 194, 164 - 50, 200);
+    this.color = colorValue || color(75, 194, 164 - 50);
     this.type = "item";
     this.amt = amt || 1;
     this.score = this.amt * 100;
     this.physics.solidObject = false;
+    
+    this.lastDraw = this.draw;
+    this.draw = function()
+    {  
+        //Shadow splash
+        fill(0, 0, 0, 50);
+        ellipse(this.xPos, this.yPos, this.diameter * 1.3, this.diameter * 1.3);
+        this.lastDraw();
+    };
     
     this.onCollide = function(object)
     {
@@ -3377,6 +3412,112 @@ var HpCoin = function(xPos, yPos, diameter, colorValue, amt)
     };
 };
 gameObjects.addObject("hpCoin", createArray(HpCoin));
+
+var Crate = function(xPos, yPos, width, height, colorValue, noBreak)
+{
+    DynamicRect.call(this, xPos, yPos, width, height, colorValue || color(190, 160, 84, 255)); 
+   
+    this.breakPercent = 0;
+    this.breakRate = 0.65;
+    this.xDeacl = 0.35; //Turn this up for less glitches
+    this.type = "block";
+    this.noBreak = noBreak;//A no breaker / brainer
+    
+    this.broken = false;
+    
+    this.addDrops = function()
+    {
+        for(var i = 0; i < round(random(1, 4)); i++)
+        {
+            var item = (random(0, 100) <= 60) ? "coin" : "hpCoin";
+            var array = gameObjects.getObject(item);
+            array.add(this.xPos - round(random(-this.width * 0.4, this.width * 0.4)),
+            this.yPos - round(random(-this.height * 0.4, this.height * 0.4)), this.width / 2);  
+            cameraGrid.addReference(array.getLast());
+        }
+    };
+    
+    this.break = function()
+    {
+        this.remove();
+        if(!this.droppedItems)
+        {
+            this.addDrops();
+            this.droppedItems = true;
+        }
+    };
+    
+    this.draw = function()
+    {
+        noStroke();
+        fill(this.color);
+        rect(this.xPos, this.yPos, this.width, this.height);
+
+        fill(this.color, this.color, this.color, 20);
+        rect(this.xPos + this.width * 0.15, this.yPos + this.height * 0.15, this.width * 0.7, this.height * 0.7);
+
+        fill(0, 0, 0, 50);
+        triangle(this.xPos, this.yPos, this.xPos + this.width, this.yPos, this.xPos, this.yPos + this.height);
+        
+        if(this.noBreak)
+        {
+            fill(0, 0, 0, 50);
+            triangle(this.xPos, this.yPos, this.xPos + this.width, this.yPos + this.height, this.xPos, this.yPos + this.height); 
+        }
+    };
+ 
+    this.lastDraw = this.draw;
+ 
+    screenUtils.loadImage(this, true, "crate" + this.noBreak);
+
+    this.lastUpdate = this.update;
+    this.update = function()
+    {
+        this.lastUpdate();
+        
+        if(!this.noBreak)
+        {
+            if(this.broken || this.breakPercent >= 70)
+            {
+                this.color = color(red(this.color), green(this.color), blue(this.color), alpha(this.color) - 5);  
+                this.changeDraw = true;
+            }
+            
+            if(this.breakPercent >= 100)
+            {
+                this.broken = true;  
+            }
+            
+            if(alpha(this.color) < 30)
+            {
+                this.break();
+            }
+            
+            if(this.changeDraw && !this.changedDraw)
+            {
+                this.draw = this.lastDraw;
+                this.changedDraw = true;  
+            }
+        }
+        this.lastYVel = this.yVel;
+    };
+    
+    this.onCollide = function(object, info)
+    {
+        if(object.type === "block" && !this.noBreak)
+        {
+            if(this.lastYVel >= this.maxYVel * 0.8)
+            {
+                this.broken = true;
+            }
+            else if(abs(this.lastXPos - this.xPos) >= this.maxXVel * 0.9)
+            {
+                this.breakPercent += this.breakRate;
+            }
+        }
+    };
+};
+gameObjects.addObject("crate", createArray(Crate));
 
 var Ring = function(xPos, yPos, diameter, colorValue)
 {
@@ -3425,6 +3566,29 @@ var Ring = function(xPos, yPos, diameter, colorValue)
     };
 };
 gameObjects.addObject("ring", createArray(Ring));
+
+var Water = function(xPos, yPos, width, height, colorValue)
+{
+    Rect.call(this, xPos, yPos, width, height, colorValue); 
+    this.color = colorValue || color(40, 103, 181, 150);
+    this.physics.solidObject = false;
+    
+    this.type = "liquid";
+    this.thickness = 1.405;
+    this.damage = 0.1;
+    
+    this.onCollide = function(object)
+    {
+        if(object.physics.movement === "dynamic")
+        {
+            object.yVel = object.yVel / this.thickness;
+            object.xVel = object.xVel / this.thickness;
+            object.inLiquid = true;
+            object.inAir = false;
+        }
+    };
+};
+gameObjects.addObject("water", createArray(Water));
 
 var Ground = function(xPos, yPos, width, height, colorValue)
 {
@@ -3880,78 +4044,279 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue, invisible)
 };
 gameObjects.addObject("checkPoint", createArray(CheckPoint));
 
-var Cast = function(xPos, yPos, diameter, objectArrayName, inform, setPos)
+var Bullet = function(xPos, yPos, diameter, colorValue, blastAngle, damage, homing)
 {
-     Circle.call(this, xPos, yPos, diameter);
-     this.physics.solidObject = false;
-     this.physics.shape = "point";
+    Circle.call(this, xPos, yPos, diameter);
+    
+    this.physics.solidObject = false;
+    this.physics.shape = "point";
      
-     this.xVel = 0;
-     this.yVel = 0;
-     
-     this.boundingBox.off = true;
-     this.physics.movement = "dynamic";
-     
-     this.timer = 0;
-     this.time = 50;
-
-     this.objectArrayName = objectArrayName;
-     this.inform = inform;
-     this.setPos = setPos;
-     
-     this.onKill = function()
-     {
-         if(this.setPos === undefined)
+    this.boundingBox = {};
+    this.boundingBox.off = true;
+    this.physics.movement = "dynamic";
+    
+    this.color = colorValue || color(255, 255, 255);
+    
+    this.blastAngle = blastAngle || 0;
+    this.xVel = 0;
+    this.yVel = 0;
+    this.maxVel = 1;
+    this.acl = 1;//0.3;
+  
+    this.maxLife = 350;
+    this.life = this.maxLife;
+    this.homing = homing;
+    
+    this.getTarget = function()
+    {
+        var player = gameObjects.getObject("player").getLast();
+        return {
+            xPos : player.xPos + player.width / 2,
+            yPos : player.yPos + player.height / 2,
+        };
+    };
+    
+    this.changeAngleSpeed = 30;
+    
+    this.draw = function()
+    {
+        fill(red(this.color), green(this.color), blue(this.color), this.life * 215 / this.maxLife + 30);
+        ellipse(this.xPos, this.yPos, this.diameter, this.diameter);  
+    };
+    
+    this.lastUpdate = this.update;
+    this.update = function()
+    {
+        this.lastUpdate();
+        
+        this.life--;
+        if(this.life < 0)
+        {
+            this.remove();
+        }
+        
+        if(this.homing)
+        {
+            var target = this.getTarget();
+            var angle = atan2(target.yPos - this.yPos, target.xPos - this.xPos);
+            if(this.blastAngle < angle)
+            {
+                this.blastAngle += min(this.changeAngleSpeed, abs(angle - this.blastAngle));
+            }
+            else if(this.blastAngle > angle)
+            {
+                this.blastAngle -= min(this.changeAngleSpeed, abs(angle - this.blastAngle));
+            }
+            //this.blastAngle = angle;
+        }
+        
+        this.acl = this.maxVel;
+        this.xVel = this.acl * cos(this.blastAngle);
+        this.xVel = constrain(this.xVel, -this.maxVel, this.maxVel);
+        this.xPos += this.xVel;
+        
+        this.yVel = this.acl * sin(this.blastAngle);
+        this.yVel = constrain(this.yVel, -this.maxVel, this.maxVel);
+        this.yPos += this.yVel;
+    };
+    
+    this.damage = damage || 1;
+    this.onCollide = function(object)
+    {
+         if(object.type === "lifeform" && !object.fromEnemy)
+         {
+             object.hp -= this.damage;
+             this.remove();
+             this.onCollide = function() {};
+         }
+         else if(object.physics.solidObject && 
+         object.arrayName !== this.arrayName && 
+         object.arrayName !== "shooter")
          {
              this.remove();
-         }else{
-             this.setPos(this); 
-             this.timer = 0;
+             this.onCollide = function() {};
          }
-     };
+    };
+};
+gameObjects.addObject("bullet", createArray(Bullet));
+
+//A shooter is a factory that creates bullets!
+var Shooter = function(xPos, yPos, diameter, colorValue)
+{
+    Circle.call(this, xPos, yPos, diameter);
+    this.color = colorValue || color(125, 125, 255);
+    
+    this.shootSpeed = 1;
+    this.shootTimer = 0;
+    this.shootAngle = 0;
+    
+    this.hp = 10;
+    this.maxHp = 10;
+    this.hpBar = new Bar(this.xPos - this.radius, this.yPos - this.radius * 1.5, this.diameter, 5, color(34, 190, 51, 130), 10); 
+
+    this.draw = function()
+    {
+        fill(this.color);
+        ellipse(this.xPos, this.yPos, this.diameter, this.diameter);
+        
+        pushMatrix();
+        translate(this.xPos, this.yPos);
+        rotate((this.shootAngle * 57.29578) - 90);
+        rect(-this.diameter * 0.15, 0, this.diameter * 0.3, this.diameter);
+        popMatrix();
+        
+        this.hpBar.draw();
+        this.hpBar.set(max(this.hp, 0), this.maxHp);
+        
+        if(this.hp <= this.maxHp * 0.4)
+        {
+            this.hpBar.color = color(190, 34, 51, 130);
+        }
+    };
+    
+    this.createBullet = function(self)
+    {
+        var homing = (random(0, 100) < 15);
+        
+        var colorValue;
+        if(homing)
+        {
+            colorValue = color(0, 0, 200);  
+        }
+        gameObjects.getObject("bullet").add(self.xPos, self.yPos, self.diameter * 0.2, colorValue, this.shootAngle, 0.5, homing);
+        
+        var lastBullet = gameObjects.getObject("bullet").getLast();
+        if(homing)
+        {
+            lastBullet.maxVel = 1.6;//1.5;
+            lastBullet.life = 550;
+            lastBullet.damage = 2;
+        }
+        cameraGrid.addReference(lastBullet);
+    };
+    
+    this.getTarget = function()
+    {
+        var player = gameObjects.getObject("player").getLast();
+        return {
+            xPos : player.xPos + player.width / 2,
+            yPos : player.yPos + player.height / 2,
+        };
+    };
+    
+    this.update = function()
+    {
+        var target = this.getTarget();
+        this.shootAngle = atan2(this.yPos - target.yPos, this.xPos - target.xPos) - PI;  
+        //atan2((mouseY + cam.focusYPos - cam.halfHeight) - this.yPos, 
+        //      (mouseX + cam.focusXPos - cam.halfWidth) - this.xPos);
+        
+        this.shootTimer += this.shootSpeed;
+        if(this.shootTimer >= 33)
+        {
+            this.shootTimer = 0;  
+            this.createBullet(this);
+        }
+        
+        if(this.hp <= 0)
+        {
+            this.shootTimer = 0;
+            this.color = color(red(this.color), green(this.color), blue(this.color), alpha(this.color) - 2);
+        }
+        
+        if(alpha(this.color) < 10)
+        {
+            this.remove();
+        }
+    };
+    
+    this.onCollide = function(object)
+    {
+        if(object.arrayName === "player" && object.yPos + object.height < this.yPos)
+        {
+            this.hp -= object.damage;
+        }
+    };
+};
+gameObjects.addObject("shooter", createArray(Shooter));
+
+var Cast = function(xPos, yPos, diameter, objectArrayName, inform, setPos)
+{
+    Circle.call(this, xPos, yPos, diameter);
+    this.physics.solidObject = false;
+    this.physics.shape = "point";
+    
+    this.xVel = 0;
+    this.yVel = 0;
+    
+    this.boundingBox.off = true;
+    this.physics.movement = "dynamic";
+    
+    this.timer = 0;
+    this.time = 50;
+    
+    this.objectArrayName = objectArrayName;
+    this.inform = inform;
+    this.setPos = setPos;
      
-     this.draw = function() {};
+    this.onKill = function()
+    {
+        if(this.setPos === undefined)
+        {
+            this.remove();
+        }else{
+            this.setPos(this); 
+            this.timer = 0;
+        }
+    };
      
-     this.update = function()
-     {
-         if(this.xVel !== 0)
-         {
-             this.xPos += this.xVel;
-             if(constrain(this.xPos, cam.focusXPos - cam.halfWidth, cam.focusXPos + cam.halfWidth) !== this.xPos)
-             {
-                 this.timer = this.time + 1;
-             }
-         }
-         if(this.yVel !== 0)
-         {
-             this.yPos += this.yVel;
-             if(constrain(this.yPos, cam.focusYPos - cam.halfHeight, cam.focusYPos + cam.halfHeight) !== this.yPos)
-             {
-                 this.timer = this.time + 1;
-             }
-         }
-         this.timer++;
-         if(this.timer > this.time)
-         {
-             this.onKill();  
-         }
-     };
+    this.draw = function() {};
      
-     this.onCollide = function(object)
-     {    
-         if(object.arrayName !== this.objectArrayName && object.arrayName !== "water")
-         {
-             if(this.inform !== undefined)
-             {
-                 this.inform(object);  
-             }
-             this.onKill();
-         }
-     };
+    this.signal = function()
+    {
+        return (this.timer === this.lastTimer);
+    };
+     
+    this.update = function()
+    {
+        if(this.xVel !== 0)
+        {
+            this.xPos += this.xVel;
+            if(constrain(this.xPos, cam.focusXPos - cam.halfWidth, cam.focusXPos + cam.halfWidth) !== this.xPos)
+            {
+                this.timer = this.time + 1;
+            }
+        }
+        if(this.yVel !== 0)
+        {
+            this.yPos += this.yVel;
+            if(constrain(this.yPos, cam.focusYPos - cam.halfHeight, cam.focusYPos + cam.halfHeight) !== this.yPos)
+            {
+                this.timer = this.time + 1;
+            }
+        }
+        this.timer++;
+        if(this.timer > this.time)
+        {
+            this.onKill();  
+        }
+        this.lastTimer = this.timer;
+    };
+    this.onCollide = function(object)
+    {    
+        if(object.arrayName !== this.objectArrayName && object.physics.solidObject)
+        {
+            if(this.inform !== undefined)
+            {
+                this.inform(object);  
+            }
+            this.onKill();
+        }
+    };
 };
 gameObjects.addObject("cast", createArray(Cast));
 
-var Enemy = function(xPos, yPos, width, height, colorValue, props)
+var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
 {
     DynamicRect.call(this, xPos, yPos, width, height);
     LifeForm.call(this, 0.2); //Inherit from life form width LifeForm.call(this, hp, notNormalDeath);
@@ -3992,6 +4357,8 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props)
     this.fromEnemy = true;
     
     this.maxXVel = 1;
+    
+    this.complexDraw = complexDraw;
     
     var self = this;
     this.controls = {
@@ -4103,6 +4470,79 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props)
          rect(this.xPos, this.yPos, this.width, this.height, 5);
     };   
     
+    if(this.complexDraw)
+    {
+        this.eyeAngle = 180;
+        this.hide = 0;
+        this.hideVel = 1.5;
+        this.eyes = 2;
+        this.eyeSwitch = round(random(1, 2));
+        
+        this.draw = function() 
+        {
+            noStroke();
+            fill(this.color);
+            rect(this.xPos, this.yPos, this.width, this.height, 5);
+            
+            fill(255, 255, 255, 200);
+            var _x = this.xPos + ((this.eyeSwitch === 1) ? this.width * 0.25 : this.width * 0.75);
+            var _y = this.yPos + this.height * 0.3;
+            var _radius = this.width * 0.15;
+            var _diameter = _radius * 2;
+            var _x2 = this.xPos + ((this.eyeSwitch === 1) ? this.width * 0.75 : this.width * 0.25);
+            var _y2 = this.yPos + this.height * 0.7;
+            if(this.eyes === 1 || this.eyes === 2)
+            {
+                ellipse(_x, _y, _diameter, _diameter);
+            }
+            if(this.eyes === 2)
+            {
+                ellipse(_x2, _y2, _diameter, _diameter);
+            }
+            
+            var player = gameObjects.getObject("player").getLast();
+            if(player !== undefined)
+            {
+                this.eyeAngle = atan2(player.yPos - this.yPos, player.xPos - this.xPos);
+            }else{
+                this.eyeAngle = atan2((mouseY + cam.focusYPos - cam.halfHeight) - this.yPos, (mouseX + cam.focusXPos - cam.halfWidth) - this.xPos);
+            }
+            var x = cos(this.eyeAngle) * this.width * 0.1;
+            var y = sin(this.eyeAngle) * this.width * 0.1;
+            fill(0, 0, 0, 200);
+            if(this.eyes === 1 || this.eyes === 2)
+            {
+                ellipse(_x + x, _y + y, _radius, _radius);
+            }
+            if(this.eyes === 2)
+            {
+                ellipse(_x2 + x, _y2 + y, _radius, _radius);
+            }
+            
+            fill(red(this.color), green(this.color), blue(this.color), this.hide);
+            rect(this.xPos, this.yPos, this.width, this.height, 5);
+            
+            if(this.hide < 0 || this.hide > 255)
+            {
+                this.hideVel = -this.hideVel; 
+                if(this.hide > 255)
+                {
+                    this.eyes--;
+                    if(this.eyes <= 0)
+                    {
+                        this.eyeSwitch++;
+                        if(this.eyeSwitch > 2)
+                        {
+                            this.eyeSwitch = 1;
+                        }
+                        this.eyes = 2;  
+                    }
+                }
+            }
+            this.hide += this.hideVel;
+        };
+    }    
+    
     this.lastUpdate = this.update;
     this.simpleUpdate = function()
     {
@@ -4131,15 +4571,20 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props)
             this.chargeTimer--;
             if(this.chargeTimer < 0)
             {
-                this.task = "patrol";   
+                this.task = "patrol";
             }
         }
         
         if(this.cast !== undefined)
         {
-            this.cast.time = 15;
+            //this.cast.time = 15;
             var speed = this.maxXVel + 10;
-            this.cast.xVel = (this.xDir === "left") ? -speed : speed; 
+            this.cast.xVel = (this.xDir === "left") ? -speed : speed;
+            if(!this.cast.signal())
+            {
+                this.cast.setPos(this.cast);
+                cameraGrid.addReference(this.cast);
+            }
         }
         
         //this.cast.yVel = round(random(-6, 6)); 
@@ -4158,7 +4603,7 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props)
                 this.handlePlayer(object);
                 break;
                 
-            case (object.type === "block" && object.arrayName !== "crate") :
+            case (object.type === "block") :
                 this.handleBlock(object, info);
                 break;
                 
@@ -4178,7 +4623,7 @@ var FireBeaker = function(xPos, yPos, width, height, colorValue)
 {
     Enemy.call(this, xPos, yPos, width, height, colorValue || color(166, 110, 49), {
         handleEdge : true,
-    });
+    }, true);
     
     this.lavaImmune = true;
     this.lastOnCollide = this.onCollide;
@@ -4197,9 +4642,8 @@ var WaterBeaker = function(xPos, yPos, width, height, colorValue)
 {
     Enemy.call(this, xPos, yPos, width, height, colorValue || color(56, 137, 161), {
         charging : true,
-    });    
+    }, true);    
     this.addCast(this, "waterBeaker");
-    
     this.lastGravity = this.gravity;
     this.lastUpdate1 = this.update;
     this.update = function()
@@ -4329,7 +4773,7 @@ var Player = function(xPos, yPos, width, height, colorValue)
         
         this.lastUpdate();
     };
-
+    
     /*Specific code*/
     this.goto = {};
     this.activate = function()
@@ -4475,21 +4919,22 @@ var levels = {
                 symbol : 'e',
             },
         },
+        inWater : false,
         plan : [
             "                                                   ",
             "                                                   ",
             "                                                   ",
             "      UFFFFFFFFFF                                  ",
-            "      U                            b     mbbbb     ",
             "      U                                            ",
+            "      U               %       %                    ",
             "      U                                            ",
-            "            e                                      ",
-            "          bbbb                                     ",
-            "                                          M        ",
+            "   x                                               ",
+            "  bbb       e                            e         ",
+            "          bbbb                         PPPP        ",
             "                                                   ",
             "a                                                  ",
-            "D   f     p  b E e  b              b         m     ",
-            "ggggggggggggbbbbbbbggggggggbbbggggggssggggggggggggg",
+            "D   f      p x       E                E            ",
+            "ggggggggggggbbbbbbbggggggggbbbggggggggggggggggggggg",
             "dddddddddddddd###dddddwwwdddddddddddddddddddddddddd",
         ],
     },
@@ -4571,6 +5016,11 @@ levels.build = function(plan)
         levelInfo.width = level.plan[0].length * levelInfo.unitWidth;
         levelInfo.height = level.plan.length * levelInfo.unitHeight;
         backgrounds.setBackground(level.background);
+        
+        if(level.inWater)
+        {
+            gameObjects.getObject("water").add(levelInfo.xPos, levelInfo.yPos, levelInfo.width, levelInfo.height);  
+        }
     }
     
     var done = false;
@@ -4622,7 +5072,7 @@ levels.build = function(plan)
                 case 'W' : 
                     gameObjects.getObject("water").add(xPos - levelInfo.unitWidth, yPos - levelInfo.unitHeight, levelInfo.unitWidth * 3, levelInfo.unitHeight * 3);
                     break;
-                    
+                
                 case 'i' :
                     gameObjects.getObject("ice").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
@@ -4637,6 +5087,14 @@ levels.build = function(plan)
                 
                 case 'E' :
                     gameObjects.getObject("waterBeaker").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+                
+                case '%' :
+                    gameObjects.getObject("shooter").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
+                    break;
+                 
+                case '.' :
+                    gameObjects.getObject("bullet").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
                     break;
                     
                 case 'U' :
@@ -4664,6 +5122,10 @@ levels.build = function(plan)
                 case 'x' :
                     gameObjects.getObject("crate").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
+                    
+                case 'X' :
+                    gameObjects.getObject("crate").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, undefined, true);
+                    break;
 
                 case 'm' :
                     gameObjects.getObject("movingPlatform").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, color(200, 200, 20), "up");
@@ -4680,7 +5142,7 @@ levels.build = function(plan)
                     break;
                     
                 case 'h' :
-                    gameObjects.getObject("hpCoin").add(xPos + levelInfo.unitWidth / 4, yPos + levelInfo.unitHeight / 4, levelInfo.unitWidth / 2, 0, 3);
+                    gameObjects.getObject("hpCoin").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth / 2, 0, 3);
                     break;
 
                 case 'o' :
@@ -4699,6 +5161,10 @@ levels.build = function(plan)
                     
                 case 'F' : 
                     gameObjects.getObject("fallingBlock").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
+                    break;
+
+                case 'u' : 
+                    gameObjects.getObject("backBlock").add(xPos, yPos, levelInfo.unitWidth * 4, levelInfo.unitHeight * 4);
                     break;
 
                 case '<' : case '>' : case '^' : case 'v' :
@@ -5059,6 +5525,7 @@ game.play = function()
     cam.view();
     backgrounds.drawForeground();
     gameObjects.apply();
+    gameObjects.draw();
     gameObjects.drawBoundingBoxes();
     //cameraGrid.draw();
     //cam.draw();
@@ -5072,7 +5539,7 @@ game.play = function()
     
     //Debug stuff 
     fpsCatcher.update();
-    screenUtils.debugMode();
+    screenUtils.debugMode(); 
 };
 
 var draw = function()
@@ -5082,6 +5549,12 @@ var draw = function()
     game[game.gameState]();
     screenUtils.update();
 };
+
+//for(var i = 0; i < gameObjects.order.length; i++)
+//{
+//    println(gameObjects.order[i]);
+//}
+//println(gameObjects.length + " gameObjects");
 
 var lastMousePressed = mousePressed;
 mousePressed = function()
