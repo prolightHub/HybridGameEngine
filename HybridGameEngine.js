@@ -2475,8 +2475,7 @@ gameObjects.apply = function()
     for(var col = cam.upperLeft.col; col <= cam.lowerRight.col; col++)
     {
         for(var row = cam.upperLeft.row; row <= cam.lowerRight.row; row++)
-        {
-            var cell = cameraGrid[col][row];
+        {            var cell = cameraGrid[col][row];
             for(var i in cell)
             {  
                 var array = this.getObject(cell[i].arrayName);
@@ -2493,7 +2492,7 @@ gameObjects.apply = function()
 
                 /*Keep the cell up to date
                 Note : use this before referencing a cell*/
-                if(object.physics.movement === "dynamic" || object.physics.changes)// || array.changed)
+               // if(object.physics.movement === "dynamic" || object.physics.changes)// || array.changed)
                 {
                     var place = {};
                     if(!object.boundingBox.off)
