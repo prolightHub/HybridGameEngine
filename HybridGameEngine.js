@@ -133,15 +133,15 @@ var processing = new Processing(canvas, function(processing)
 /////////////////Code///////////////////
 
 var game = {
-    gameState : "play",
+    gameState : "menu",
     fps : 60,
     version : "v0.4.1 beta",
-    debugMode : true, //Turn this to true to see the fps
+    debugMode : false, //Turn this to true to see the fps
     showDebugPhysics : false,
     boundingBoxes : false,
 };
 var levelInfo = {
-    level : "test",
+    level : "intro",
     xPos : 0,
     yPos : 0,
     width : width,
@@ -2475,7 +2475,8 @@ gameObjects.apply = function()
     for(var col = cam.upperLeft.col; col <= cam.lowerRight.col; col++)
     {
         for(var row = cam.upperLeft.row; row <= cam.lowerRight.row; row++)
-        {            var cell = cameraGrid[col][row];
+        {           
+            var cell = cameraGrid[col][row];
             for(var i in cell)
             {  
                 var array = this.getObject(cell[i].arrayName);
@@ -2492,20 +2493,20 @@ gameObjects.apply = function()
 
                 /*Keep the cell up to date
                 Note : use this before referencing a cell*/
-               // if(object.physics.movement === "dynamic" || object.physics.changes)// || array.changed)
+                if(object.physics.movement === "dynamic" || object.physics.changes)// || array.changed)
                 {
-                    var place = {};
-                    if(!object.boundingBox.off)
-                    {
-                        place = cameraGrid.getPlace(object.boundingBox.xPos, object.boundingBox.yPos);
-                    }else{
-                        place = cameraGrid.getPlace(object.xPos, object.yPos);
-                    }
-                    if(place.col !== col && place.row !== row)
-                    {
+                    // var place = {};
+                    // if(!object.boundingBox.off)
+                    // {
+                    //     place = cameraGrid.getPlace(object.boundingBox.xPos, object.boundingBox.yPos);
+                    // }else{
+                    //     place = cameraGrid.getPlace(object.xPos, object.yPos);
+                    // }
+                    // if(place.col !== col && place.row !== row)
+                    // {
                         delete cameraGrid[col][row][i];
                         cameraGrid.addReference(object);
-                    }
+                    // }
                     //array.changed = false;
                 }
                   
@@ -4066,7 +4067,7 @@ var Bullet = function(xPos, yPos, diameter, colorValue, blastAngle, damage, homi
     
     this.color = colorValue || color(255, 255, 255);
     
-    this.blastAngle = blastAngle || 0;
+    this.blastAngle = blastAngle + ((MODE === "ka") ? 90 : 0) || 0;
     this.xVel = 0;
     this.yVel = 0;
     this.maxVel = 1;
@@ -4132,19 +4133,19 @@ var Bullet = function(xPos, yPos, diameter, colorValue, blastAngle, damage, homi
     this.damage = damage || 1;
     this.onCollide = function(object)
     {
-         if(object.type === "lifeform" && !object.fromEnemy)
-         {
-             object.hp -= this.damage;
-             this.remove();
-             this.onCollide = function() {};
-         }
-         else if(object.physics.solidObject && 
-         object.arrayName !== this.arrayName && 
-         object.arrayName !== "shooter")
-         {
-             this.remove();
-             this.onCollide = function() {};
-         }
+        if(object.type === "lifeform" && !object.fromEnemy)
+        {
+            object.hp -= this.damage;
+            this.remove();
+            this.onCollide = function() {};
+        }
+        else if(object.physics.solidObject && 
+        object.arrayName !== this.arrayName && 
+        object.arrayName !== "shooter")
+        {
+            this.remove();
+            this.onCollide = function() {};
+        }
     };
 };
 gameObjects.addObject("bullet", createArray(Bullet));
@@ -4165,12 +4166,18 @@ var Shooter = function(xPos, yPos, diameter, colorValue)
 
     this.draw = function()
     {
+        noStroke();
         fill(this.color);
         ellipse(this.xPos, this.yPos, this.diameter, this.diameter);
         
         pushMatrix();
         translate(this.xPos, this.yPos);
-        rotate((this.shootAngle * 57.29578) - 90);
+        if(MODE === "pjs")
+        {
+            rotate((this.shootAngle * 57.29578) - 90);
+        }else{
+            rotate(this.shootAngle);  
+        }
         rect(-this.diameter * 0.15, 0, this.diameter * 0.3, this.diameter);
         popMatrix();
         
@@ -4216,7 +4223,12 @@ var Shooter = function(xPos, yPos, diameter, colorValue)
     this.update = function()
     {
         var target = this.getTarget();
-        this.shootAngle = atan2(this.yPos - target.yPos, this.xPos - target.xPos) - PI;  
+        if(MODE === "pjs")
+        {
+            this.shootAngle = atan2(this.yPos - target.yPos, this.xPos - target.xPos) - PI;
+        }else{
+            this.shootAngle = atan2(target.yPos - this.yPos, target.xPos - this.xPos) - 90;
+        }
         //atan2((mouseY + cam.focusYPos - cam.halfHeight) - this.yPos, 
         //      (mouseX + cam.focusXPos - cam.halfWidth) - this.xPos);
         
@@ -4475,8 +4487,8 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
           
     this.draw = function()
     {
-         fill(this.color);
-         rect(this.xPos, this.yPos, this.width, this.height, 5);
+        fill(this.color);
+        rect(this.xPos, this.yPos, this.width, this.height, 5);
     };   
     
     if(this.complexDraw)
@@ -4937,45 +4949,43 @@ var levels = {
             "      U                                            ",
             "      U               %       %                    ",
             "      U                                            ",
-            "   x                                               ",
-            "  bbb       e                            e         ",
-            "          bbbb                         PPPP        ",
+            "                                                   ",
+            "                                         e         ",
+            "                                       PPPP        ",
             "                                                   ",
             "a                                                  ",
-            "D   f      p x       E                E            ",
+            "D   f   p            E                E            ",
             "ggggggggggggbbbbbbbggggggggbbbggggggggggggggggggggg",
             "dddddddddddddd###dddddwwwdddddddddddddddddddddddddd",
         ],
     },
     "test" : {
-//         doors : {
-//             'a' : {
-//                 level : "test",
-//                 symbol : 'a',
-//                 locked : true,
-//             },
-//         },
-//         keys : {
-//             'a' : {
-//                 level : "test",
-//                 symbol : 'a',
-//             },
-//         },
+        doors : {
+            'a' : {
+                level : "test",
+                symbol : 'a',
+                locked : true,
+            },
+        },
+        keys : {
+            'a' : {
+                level : "test",
+                symbol : 'a',
+            },
+        },
         plan : [
-            "         p             e                      ",
-            "e                       e                     ",
-            "                    ee   e                    ",
-            "                     ee  e                    ",
-            "                     ee  e                    ",
-            "                      ee e                    ",
-            "                      ee e                    ",
-            "                      ee e                    ",
-            "                      ee e                    ",
-            "                      e e                     ",
-            "                       ee                     ",
-            "                       ee                     ",
-            "                       e e                    ",
-            "gggggggggggggggggggggggggggggggggggggggggggggg",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "                                               ",
+            "ggggggggggggggggggggggggggggggggggggggggggggggg",
         ],
     },  
 };
@@ -5133,7 +5143,7 @@ levels.build = function(plan)
                 case 'x' :
                     gameObjects.getObject("crate").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
-                    
+
                 case 'X' :
                     gameObjects.getObject("crate").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight, undefined, true);
                     break;
@@ -5576,7 +5586,6 @@ mousePressed = function()
         game[game.gameState].mousePressed();
     }
 };
-        
     }
     if(typeof draw !== 'undefined') processing.draw = draw;
 });
