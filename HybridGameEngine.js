@@ -4939,34 +4939,34 @@ var levels = {
         ],
     },
     "test" : {
-        doors : {
-            'a' : {
-                level : "test",
-                symbol : 'a',
-                locked : true,
-            },
-        },
-        keys : {
-            'a' : {
-                level : "test",
-                symbol : 'a',
-            },
-        },
+//         doors : {
+//             'a' : {
+//                 level : "test",
+//                 symbol : 'a',
+//                 locked : true,
+//             },
+//         },
+//         keys : {
+//             'a' : {
+//                 level : "test",
+//                 symbol : 'a',
+//             },
+//         },
         plan : [
-            "                       e                     ",
+            "         p             e                      ",
             "e                       e                     ",
-            "                    ee   e                     ",
-            "                     ee  e                     ",
-            "                     ee  e                     ",
-            "                      ee e                     ",
-            "                      ee e                     ",
-            "                      ee e                     ",
-            "                      ee e                     ",
+            "                    ee   e                    ",
+            "                     ee  e                    ",
+            "                     ee  e                    ",
+            "                      ee e                    ",
+            "                      ee e                    ",
+            "                      ee e                    ",
+            "                      ee e                    ",
             "                      e e                     ",
             "                       ee                     ",
             "                       ee                     ",
-            "          p            e e                    ",
-            "ggggggggggggggggggggggggggggggggggggggggggggg",
+            "                       e e                    ",
+            "gggggggggggggggggggggggggggggggggggggggggggggg",
         ],
     },  
 };
