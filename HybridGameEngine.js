@@ -46,7 +46,7 @@ var processing = new Processing(canvas, function(processing)
 /**   Hybrid Game Engine  **/
 /**
     @Author Prolight
-    @Version 0.4.1 beta
+    @Version 0.4.3 beta
 
     @How  :
         Use the arrow keys to move. Down to go through 
@@ -110,23 +110,28 @@ var processing = new Processing(canvas, function(processing)
       + Extra settings with buttons!
         This is getting close to 5000 lines of code woah!
       + Added a loading screen with a percentage. 
-         I might turn it off for small loading quantities 
+        I might turn it off for small loading quantities 
       + The loading Screen now has a bar  
     * v0.4.1 
-         +I've added fire beakers and water beakers   
-         +Created ordered rendering
-         +Beakers switch eyes
-         
-     As of 0.4.2 #The more objects update
+        +I've added fire beakers and water beakers   
+        +Created ordered rendering
+        +Beakers switch eyes    
+    * v0.4.2 
        +Added shooters
        +Shooters now have health 
        +Crates now drop items
        +There are now two types of crates, the ones that break and the ones that don't
-         
+       +Shooters now working ka mode
+       -Fixed bug with invisible / reappearing objects
+        by instead of deleting objects, hiding them by replacing them 
+        with a gameObject class 
+
+    * v0.4.3
+        Cloud mines are now added
+        We now have Sky vipers and Ninjas with Ninja stars
+
     Future Updates :
-        I still need to make shooters work in khan academy mode
-        Also I need to make the rectangle collision faster and more precise
-        plus I really need to fix incorrect cell data
+        Clouds, spikes
 **/
 
 //Feel free to look through the code
@@ -135,7 +140,7 @@ var processing = new Processing(canvas, function(processing)
 var game = {
     gameState : "menu",
     fps : 60,
-    version : "v0.4.1 beta",
+    version : "v0.4.3 beta",
     debugMode : false, //Turn this to true to see the fps
     showDebugPhysics : false,
     boundingBoxes : false,
@@ -150,8 +155,8 @@ var levelInfo = {
     Too low means that there will be too many cells for the camera to loop through.
     Too high and it means that too many collisions will be checked*/
     //This should be more than the unitSize and less than the cameraSize, If you have a beefier pc turn this up.
-    cellWidth : 100, //30-400
-    cellHeight : 100, //30-400
+    cellWidth : 100, //30-400 (width)
+    cellHeight : 100, //30-400 (weight)
     /*Changing this will also effect game performance
     Too low means too many objects in each cell and there for lower fps.
     Too high and you won't be able to see anything but you'll get higher fps*/
@@ -723,6 +728,189 @@ var pallete = {
     'l' : color(51, 51, 51),
 };
 var storedImages = {
+    "skyViper" : pixelFuncs.createPixelImage({
+        width : 50, 
+        height : 50, 
+        replace : true,
+        pixelSize : 3, 
+        pixels : [
+            "aaaaaaaabbbbaa",
+            "aaaaaaabccccba",
+            "bbabbbabcbcbcb",
+            "bdbdeebcffcffb",
+            "bdeedbcccccbba",
+            "abdebfffbbbaaa",
+            "aabbbcccfbaaaa",
+            "aaaabffcfcbaaa",
+            "agaaabbbffcbaa",
+            "gaggaaaabcfbaa",
+            "aggggbaabcfbaa",
+            "aaggbfbbfcfbaa",
+            "aaagbfccffbaaa",
+            "aaaaabffbbaaaa",
+            "aaaaaabbaaaaaa",
+        ],
+        pallete : {
+            'a':"clear",
+            'b':-16777215,
+            'c':-13778048,
+            'd':-11846475,
+            'e':-10848091,
+            'f':-13785753,
+            'g':-1025524,
+        },
+    }),
+    "skyViperLeft" : pixelFuncs.createPixelImage({
+        width : 50, 
+        height : 50, 
+        replace : true,
+        pixelSize : 3, 
+        pixels : [
+            "aabbbbaaaaaaaa",
+            "abccccbaaaaaaa",
+            "bcbcbcbabbbabb",
+            "bffcffcbeedbdb",
+            "abbcccccbdeedb",
+            "aaabbbfffbedba",
+            "aaaabfcccbbbaa",
+            "aaabcfcffbaaaa",
+            "aabcffbbbaaaga",
+            "aabfcbaaaaggag",
+            "aabfcbaabgggga",
+            "aabfcfbbfbggaa",
+            "aaabffccfbgaaa",
+            "aaaabbffbaaaaa",
+            "aaaaaabbaaaaaa",
+        ],
+        pallete : {
+            'a':"clear",
+            'b':-16777215,
+            'c':-13778048,
+            'd':-11846475,
+            'e':-10848091,
+            'f':-13785753,
+            'g':-1025524,
+        },
+    }),
+    "skyViper2" : pixelFuncs.createPixelImage({
+        width : 50, 
+        height : 50, 
+        replace : true,
+        pixelSize : 3, 
+        pixels : [
+            "aabbaaaaaaaaaaa",
+            "abcdbbbabbbbaaa",
+            "abdccdcbeeeebaa",
+            "bbcbbbdbebebeba", 
+            "bfbfddbeggeggba",
+            "bfddfbeeeeghbaa", 
+            "abfdbgggbgbahaa", 
+            "aabbabeegbaaaha", 
+            "aaaaabgegebahah", 
+            "aiaaaabbggebaaa", 
+            "iaiiaaaabegbaaa", 
+            "aiiiibaabegbaaa", 
+            "aaiibgbbgegbaaa", 
+            "aaaibgeeggbaaaa", 
+            "aaaaabggbbaaaaa", 
+            "aaaaaabbaaaaaaa", 
+        ],
+        pallete : {
+            'a':"clear",
+            'b':-16777215,
+            'c':-14787959,
+            'd':-10848091,
+            'e':-13778048,
+            'f':-11846475,
+            'g':-13785753,
+            'h':-1048513,
+            'i':-1025524,
+        },
+    }),
+    "skyViperLeft2" : pixelFuncs.createPixelImage({
+        width : 50, 
+        height : 50, 
+        replace : true,
+        pixelSize : 3, 
+        pixels : [
+            "aaaaaaaaaaabbaa",
+            "aaabbbbabbbdcba",
+            "aabeeeebcdccdba",
+            "abebebebdbbbcbb",
+            "abggeggebddfbfb",
+            "aabhgeeeebfddfb",
+            "aahabgbgggbdfba",
+            "ahaaabgeebabbaa",
+            "hahabegegbaaaaa",
+            "aaabeggbbaaaaia",
+            "aaabgebaaaaiiai",
+            "aaabgebaabiiiia",
+            "aaabgegbbgbiiaa",
+            "aaaabggeegbiaaa",
+            "aaaaabbggbaaaaa",
+            "aaaaaaabbaaaaaa",
+        ],
+        pallete : {
+            'a':"clear",
+            'b':-16777215,
+            'c':-14787959,
+            'd':-10848091,
+            'e':-13778048,
+            'f':-11846475,
+            'g':-13785753,
+            'h':-1048513,
+            'i':-1025524,
+        },
+    }),
+    "ninja" : pixelFuncs.createPixelImage({
+        width : 30, 
+        height : 48, 
+        replace : true,
+        pixelSize : 4, 
+        pixels : [
+            "aabbbbaa",
+            "aabccdaa",
+            "aabbbdaa",
+            "effbbffe",
+            "abffffba",
+            "abgbbgba",
+            "acdbgbca",
+            "acbbdbca",
+            "aabgbbaa",
+            "aadbbgaa",
+            "aabbbbaa",
+            "aacaacaa",
+            "aacaacaa",
+        ],
+        pallete : {
+            'a':"clear",
+            'b':-16777216,
+            'c':-14803328,
+            'd':-16777152,
+            'e':-8355712,
+            'f': 127.5,
+            'g':-15794032,
+        },
+    }),
+    "ninjaStar" : pixelFuncs.createPixelImage({
+        width : 18, 
+        height : 18, 
+        replace : true,
+        pixelSize : 3, 
+        pixels : [
+            "abbaaa",
+            "aabaab",
+            "aaccbb",
+            "bbccaa",
+            "baabaa",
+            "aaabba",
+        ],
+        pallete : {
+            'a':"clear",
+            'b':-16777216,
+            'c':-12802684,
+        },
+    }),
     "suitLeft" : pixelFuncs.createPixelImage({
         width : 30,
         height : 60,
@@ -1660,6 +1848,7 @@ var observer = {
 
                 //Step 3  : check if the point is colliding with the circle
                 circle1.pointDist = dist(circle1.xPos, circle1.yPos, point1.xPos, point1.yPos);
+                circle1.inputAngle = circle1.inputAngle;                
                 return(circle1.pointDist <= circle1.radius);
             },
             solveCollision : function(rect1, circle1)
@@ -2105,7 +2294,10 @@ var Camera = function(xPos, yPos, width, height)
     this.draw = function()
     {
         fill(0, 0, 0, 50);
-        rect(cameraGrid.xPos + this.upperLeft.col * cameraGrid.cellWidth, cameraGrid.yPos + this.upperLeft.row * cameraGrid.cellHeight, ((this.lowerRight.col + 1) - this.upperLeft.col) * cameraGrid.cellWidth, ((this.lowerRight.row + 1) - this.upperLeft.row) * cameraGrid.cellHeight);
+        rect(cameraGrid.xPos + this.upperLeft.col * cameraGrid.cellWidth, 
+            cameraGrid.yPos + this.upperLeft.row * cameraGrid.cellHeight, 
+            ((this.lowerRight.col + 1) - this.upperLeft.col) * cameraGrid.cellWidth,
+            ((this.lowerRight.row + 1) - this.upperLeft.row) * cameraGrid.cellHeight);
     };
 
     this.drawOutline = function()
@@ -2225,11 +2417,21 @@ var createArray = function(object, inArray)
         {
             return;
         }
-        this[i].index = i;
-        this[i].arrayName = this.name || this[i].arrayName;
+
         if(this[i].delete)
         {
             this.splice(i, 1);
+        }
+        else if(this[i].hideDelete && !this[i].fake)
+        {
+            this[i] = new GameObject(0, 0);
+            this[i].fake = true;
+        }
+
+        //if(!this[i].delete && !this[i].fake)
+        {
+            this[i].index = i;
+            this[i].arrayName = this.name || this[i].arrayName;
         }
     };
     return array;
@@ -2484,30 +2686,19 @@ gameObjects.apply = function()
                 array.applyObject(cell[i].index); //Needed for moving objects around
                  
                 //Delete any refs to objects removed
-                //if(object.fake)
-                //{
-                //    delete cameraGrid[col][row][i];
-                //    array.changed = true; //Tell the array that it has been changed
-                //    continue;
-                //}
+                if(object.fake)
+                {
+                   delete cameraGrid[col][row][i];
+                   array.changed = true; //Tell the array that it has been changed
+                   continue;
+                }
 
                 /*Keep the cell up to date
                 Note : use this before referencing a cell*/
-                if(object.physics.movement === "dynamic" || object.physics.changes)// || array.changed)
+                if(object.physics.movement === "dynamic" || object.physics.changes || array.changed)
                 {
-                    // var place = {};
-                    // if(!object.boundingBox.off)
-                    // {
-                    //     place = cameraGrid.getPlace(object.boundingBox.xPos, object.boundingBox.yPos);
-                    // }else{
-                    //     place = cameraGrid.getPlace(object.xPos, object.yPos);
-                    // }
-                    // if(place.col !== col && place.row !== row)
-                    // {
-                        delete cameraGrid[col][row][i];
-                        cameraGrid.addReference(object);
-                    // }
-                    //array.changed = false;
+                    delete cameraGrid[col][row][i];
+                    cameraGrid.addReference(object);
                 }
                   
                 //Use the object only once
@@ -2578,7 +2769,8 @@ var GameObject = function(xPos, yPos)
 
     this.remove = function()
     {
-        this.delete = true;
+        //this.delete = true;
+        this.hideDelete = true;
     };
 };
 
@@ -2810,6 +3002,10 @@ var LifeForm = function(hp, notNormalDeath)
                 {
                     this.yVel = -this.jumpHeight;
                 }
+                if(this.flying && this.yFlySpeed !== undefined)
+                {
+                    this.yVel = -this.yFlySpeed;    
+                }
             }
             
             if(this.controls.down())
@@ -2821,6 +3017,10 @@ var LifeForm = function(hp, notNormalDeath)
                 else if(this.onLadder)
                 {
                     this.yVel = this.climbSpeed; 
+                }
+                if(this.flying && this.yFlySpeed !== undefined)
+                {
+                    this.yVel = this.yFlySpeed;    
                 }
             }
     
@@ -4054,6 +4254,208 @@ var CheckPoint = function(xPos, yPos, width, height, colorValue, invisible)
 };
 gameObjects.addObject("checkPoint", createArray(CheckPoint));
 
+var CloudMine = function(xPos, yPos, diameter)
+{
+    Circle.call(this, xPos, yPos, diameter);
+
+    this.damage = random(1.5, 5);
+    this.activated = false;
+    this.timer = 1;
+
+    this.ex = {
+        diameter : this.diameter * 1,
+    };
+    this.color = color(255, 255, 255, 100);
+
+    this.lastDiameter = this.diameter;
+    this.maxDiameter = this.lastDiameter * 3.5;
+
+    this.physics.movement = "dynamic";
+
+    this.idInput = round(random(0, 100));
+
+    this.updateBoundingBox = function()
+    {
+        this.boundingBox.xPos = this.xPos - this.radius;
+        this.boundingBox.yPos = this.yPos - this.radius;
+        this.boundingBox.width = this.diameter;
+        this.boundingBox.height = this.diameter;
+    };
+
+    var self = this;
+    var particles = [];
+    particles.create = function(amt, gravity)
+    {
+        this.gravity = gravity;
+        for(var i = 0; i < amt; i++)
+        {
+            this.push({
+                xPos : self.xPos,
+                yPos : self.yPos,
+                yVel : round(random(-5, 5)),
+                xVel : round(random(-5, 5)), 
+                diameter : random(2, 7),
+                color : color(0, random(100, 200), 0, random(50, 150)),
+            });
+        }
+    };
+    particles.update = function(selfRadius, bounce)
+    {
+        for(var i = 0; i < this.length; i++)
+        {
+            this[i].yVel += this.gravity;
+            this[i].xPos += this[i].xVel;
+            this[i].yPos += this[i].yVel;
+
+            if(bounce && !this[i].out && dist(this[i].xPos, this[i].yPos, self.xPos, self.yPos) >= selfRadius - this[i].diameter / 2)
+            {
+                this[i].xVel = -this[i].xVel;
+                this[i].yVel = -this[i].yVel;
+                this[i].out = true;
+            }else{
+                this[i].out = false;
+            }
+        }
+    };
+    particles.draw = function()
+    {
+        for(var i = 0; i < this.length; i++)
+        {
+            fill(this[i].color);
+            ellipse(this[i].xPos, this[i].yPos, this[i].diameter, this[i].diameter);
+        }
+    };
+
+    this.particles = particles;
+    this.particles.create(random(25, 125), 0.3);
+
+    this.explode = function()
+    {
+        //The explosion rendering code
+        fill(200, 0, 0, 100);
+        ellipse(this.xPos, this.yPos, this.ex.diameter, this.ex.diameter);
+
+        noStroke();
+        fill(200, 0, 0, 100);
+        ellipse(this.xPos, this.yPos, this.ex.diameter * 0.7, this.ex.diameter * 0.7);
+
+        fill(200, 210, 0, 100);
+        ellipse(this.xPos, this.yPos, this.ex.diameter * 0.2, this.ex.diameter * 0.2);
+
+        if(this.ex.diameter < this.maxDiameter)
+        {
+            this.ex.diameter += 6;
+        }
+    };
+
+    this.lastUpdate = this.update;
+    this.update = function()
+    {
+        this.lastUpdate();
+        if(this.inWater)
+        {
+            return;
+        }
+
+        if(this.activated)
+        {
+            this.timer--;
+        }
+
+        if(this.timer < 0)
+        {
+            this.diameter = this.ex.diameter;
+            this.radius = this.diameter / 2;
+            this.physics.solidObject = false;
+            this.physics.movement = "dynamic";
+            this.updateBoundingBox();
+        }
+
+        if(this.timer < -120)
+        {
+            this.remove();
+        } 
+
+        if(this.ex.diameter > this.lastDiameter * 1.5)
+        {
+            this.particles.update(this.ex.diameter / 2, this.ex.diameter < this.maxDiameter);
+        }
+    };
+
+    this.lastDraw = this.draw;
+    this.draw = function()
+    {
+        if(this.timer >= 0)
+        {
+            this.lastDraw();
+        }
+
+        if(this.timer < 0 && this.ex.diameter < this.maxDiameter)
+        {
+            this.explode();
+        }
+        if(this.timer < 0)
+        {
+            particles.draw(); 
+        } 
+
+        this.silentTimer--;        
+    };
+
+    this.onCollide = function(object)
+    {
+        if(object.arrayName === "water" && this.diameter <= this.lastDiameter)
+        {
+            this.timer = 0;
+            this.activated = false;
+            this.physics.solidObject = true;
+            this.physics.movement = "static";
+            this.inWater = true;
+            this.onCollide = function() {};
+        }
+        else if(!this.activated)
+        {
+            this.physics.movement = "static";
+        }
+
+        if(object.type === "block" && object.arrayName !== "block" &&
+           object.arrayName !== "oneWay" && object.arrayName !== "movingPlatform")
+        {
+            object.remove();
+        }
+        else if(object.arrayName === this.arrayName)
+        {
+            if(this.timer < -17.5)//-20 is the default
+            {
+                object.activated = true;
+            }
+        }
+        else if(object.type === "lifeform" && object.arrayName !== "waterBeaker")
+        {
+            this.activated = true;
+            if(object.physics.shape === "rect" && this.ex.diameter < this.maxDiameter)
+            {
+                this.inputAngle = atan2((object.yPos + object.height / 2) - this.yPos, (object.xPos + object.width / 2) - this.xPos);
+                if(this.inputAngle !== undefined)
+                {
+                    object.xVel += cos(this.inputAngle) * 4;
+                    object.yVel += sin(this.inputAngle) * 4;
+                }
+            }
+            if(!object["damagedByMine" + this.idInput] && this.ex.diameter < this.maxDiameter)
+            {
+                object.hp -= this.damage;
+                object["damagedByMine" + this.idInput] = true;
+            }
+        }
+        else if(object.arrayName === "waterBeaker")
+        {
+            object.xDir = (object.xDir === "left") ? "right" : "left";
+        }
+    };
+};
+gameObjects.addObject("cloudMine", createArray(CloudMine));
+
 var Bullet = function(xPos, yPos, diameter, colorValue, blastAngle, damage, homing)
 {
     Circle.call(this, xPos, yPos, diameter);
@@ -4337,10 +4739,10 @@ var Cast = function(xPos, yPos, diameter, objectArrayName, inform, setPos)
 };
 gameObjects.addObject("cast", createArray(Cast));
 
-var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
+var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw, hp)
 {
     DynamicRect.call(this, xPos, yPos, width, height);
-    LifeForm.call(this, 0.2); //Inherit from life form width LifeForm.call(this, hp, notNormalDeath);
+    LifeForm.call(this, hp || 0.2); //Inherit from life form width LifeForm.call(this, hp, notNormalDeath);
     this.color = colorValue || color(red(-166344), green(-166344), blue(-166344), 150);//-166344;
     this.damage = 1.0;//2.5 is the default
     
@@ -4349,11 +4751,16 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
         gameObjects.getObject("cast").add(self.xPos + self.width / 2, self.yPos + self.height / 2, 3, arrayName, function(object)
         {
             self.hitObjectArrayName = object.name;   
-        }, 
+            self.castHitObject = object;
+            if(object.type === "lifeform" && object.arrayName !== self.arrayName)
+            {
+                self.castHit = true;
+            }
+        },
         function(cast)
         {
             cast.xPos = self.xPos + self.width / 2;  
-            cast.yPos = self.yPos + self.height / 2;  
+            cast.yPos = self.yPos + self.height / 2;
         });
         self.cast = gameObjects.getObject("cast").getLast();
     };
@@ -4395,7 +4802,10 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
         {  
             return (self.yDir === "up");
         },
-        down : function() {},
+        down : function()
+        {
+            return (self.yDir === "down");
+        },
     };
     
     this.handlePlayer = function(object)
@@ -4438,7 +4848,7 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
         else if(info.side === "up")
         {
             this.blocksBelow++;
-            this.block = object; 
+            this.block = object;
         }
     };
     this.handleEdges = function()
@@ -4451,6 +4861,7 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
         //If this is approaching the edge of the block, go the other way
         if(this.blocksBelow === 1 && this.block !== undefined)
         {
+            this.handledEdge = true;
             var inBetweenX = this.xPos + this.width / 2;
             if(inBetweenX <= this.block.xPos)
             {
@@ -4460,6 +4871,8 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
             {
                 this.xDir = "left";
             }
+        }else{
+            this.handledEdge = false;
         }
     };
     this.handleBorders = function()
@@ -4476,13 +4889,14 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
     this.chargeTimer = 0;
     this.chargeTime = 100;
     
+    this.lastRemove = this.remove;
     this.remove = function()
     {
+        this.lastRemove();
         if(this.cast !== undefined)
         {
             this.cast.remove();
-        }
-        this.delete = true; 
+        } 
     };
           
     this.draw = function()
@@ -4567,10 +4981,13 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
     this.lastUpdate = this.update;
     this.simpleUpdate = function()
     {
-        var lastHeight = this.height;
-        this.height = (this.origHeight - this.trigHeight) + (this.hp * this.trigHeight / this.maxHp);
-        this.yPos += abs(lastHeight - this.height);        
-        this.boundingBox.height = this.height;
+        if(!this.noHeightChanges)
+        {
+            var lastHeight = this.height;
+            this.height = max((this.origHeight - this.trigHeight) + (this.hp * this.trigHeight / this.maxHp), 0);
+            this.yPos += abs(lastHeight - this.height);        
+            this.boundingBox.height = this.height;
+        }
         this.blocksBelow = 0;                              
                 
         this.lastUpdate();
@@ -4580,8 +4997,8 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
     {
         this.handleEdges();
         this.handleBorders();
-        
-        if(this.hitObjectArrayName === "player")
+
+        if(this.hitObjectArrayName === "player" && this.task !== "kill")
         {
             this.task = "charge";
             this.chargeTimer = this.chargeTime;
@@ -4609,10 +5026,23 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
         }
         
         //this.cast.yVel = round(random(-6, 6)); 
-        this.maxXVel = (this.task === "charge") ? 3 : 1;
+        switch(this.task)
+        {
+            case "patrol" :
+                this.maxXVel = 1;
+                break;
+
+            case "kill" :
+                this.maxXVel = 2;
+                break;
+
+            case "charge" :
+                this.maxXVel = 3;
+                break;
+        }
         this.hitObjectArrayName = undefined;
         this.lastHit = false;
-        
+        this.castHit = false;
         this.simpleUpdate();
     };
     
@@ -4631,7 +5061,7 @@ var Enemy = function(xPos, yPos, width, height, colorValue, props, complexDraw)
             case (object.arrayName === "slope") :
                 this.yVel = -1;
                 break;
-                
+            
             case (this.arrayName === object.arrayName || object.fromEnemy) :
                 this.handleEnemy(object, info);
                 break;
@@ -4675,10 +5105,498 @@ var WaterBeaker = function(xPos, yPos, width, height, colorValue)
 };
 gameObjects.addObject("waterBeaker", createArray(WaterBeaker));
 
+var SkyViper = function(xPos, yPos, width, height, colorValue)
+{
+    Enemy.call(this, xPos, yPos, width, height, colorValue || color(30, 67, 117), {
+        charging : true,
+    }, false, 0.4);
+    this.addCast(this, "skyViper");
+    this.lastGravity = this.gravity;
+    this.gravity = 0;
+
+    this.turnTimer = 0;
+    this.turnTime = 100;
+
+    this.imageTimer = 0;
+    this.addOn = "";
+    this.draw = function()
+    {
+        this.imageName = this.arrayName;
+        this.imageTimer++;
+        if(this.imageTimer >= 40)
+        {
+            this.addOn = (this.addOn === "2") ? "" : "2";
+            this.imageTimer = 0;
+        }
+        if(this.xDir === "right")
+        {
+            this.imageName = this.arrayName + this.addOn;
+        }
+        else if(this.xDir === "left")
+        {
+            this.imageName = this.arrayName + "Left" + this.addOn;
+        }
+        image(storedImages[this.imageName], this.xPos, this.yPos);//,// this.width, this.height);
+    };
+
+    this.lastUpdate1 = this.update;
+    this.flying = true;
+    this.yFlySpeed = 2;
+    this.killTimer = 0;
+    this.killTime = 300;
+    this.noHeightChanges = true;
+
+    this.update = function()
+    {
+        if(this.yDir === "")
+        {
+            this.yVel = 0;
+        }
+        if(this.xDir === "right")
+        {
+            this.turnTimer++;
+        }
+        else if(this.xDir === "left")
+        {
+            this.turnTimer--;
+        }
+
+        if(this.task === "patrol")
+        {
+            if(this.turnTimer > this.turnTime)
+            {
+                this.xDir = "left";
+            }
+            else if(this.turnTimer < -this.turnTime)
+            {
+                this.xDir = "right";
+            }
+        }
+
+        if(this.task === "kill")
+        {
+            this.killTimer++;
+            if(this.killTimer > this.killTime)
+            {
+                this.task = "patrol";
+                this.killTimer = 0;
+                this.yDir = "";
+            }
+            if(this.killObject !== undefined)
+            {
+                switch(true)
+                {
+                    case (this.killObject.boundingBox.xPos + this.killObject.boundingBox.width <= this.xPos) :
+                        this.xDir = "left";
+                        break;
+
+                    case (this.killObject.boundingBox.xPos >= this.xPos + this.width) :
+                        this.xDir = "right";
+                        break;
+                }
+                switch(true)
+                {
+                    case (this.killObject.boundingBox.yPos + this.killObject.boundingBox.height <= this.yPos) :
+                        this.yDir = "up";
+                        break;
+
+                    case (this.killObject.boundingBox.yPos >= this.yPos + this.height) :
+                        this.yDir = "down";
+                        break;
+                }
+            }
+        }
+
+        this.lastUpdate1();
+    };
+
+    this.lastOnCollide = this.onCollide;
+    this.onCollide = function(object, info)
+    {
+        this.lastOnCollide(object, info);
+        if(object.type === "lifeform" && object.arrayName === "player")
+        {
+            this.killObject = object;
+            this.task = "kill";        
+        }
+    };
+};
+gameObjects.addObject("skyViper", createArray(SkyViper));
+
+//Ninja Star, specific to the ninja.
+var NinjaStar = function(xPos, yPos, diameter, colorValue)
+{
+    Circle.call(this, xPos, yPos, diameter);
+    this.colorValue = colorValue;
+    this.physics.movement = "dynamic";
+    this.physics.solidObject = false;
+    this.outerXVel = 0;
+    this.outerYVel = 0;
+
+    this.damage = 2.5;
+
+    this.life = random(150, 400);
+
+    this.imageName = "ninjaStar";
+    this.setAngle = 0;
+    this.draw = function()
+    {
+        pushMatrix();
+        translate(this.xPos, this.yPos);
+        rotate(this.setAngle);
+        image(storedImages[this.imageName], -this.radius, -this.radius, this.diameter, this.diameter);
+        popMatrix();
+        this.setAngle += 3;
+    };
+
+    this.updateBoundingBox = function()
+    {
+        this.boundingBox.xPos = this.xPos - this.radius;
+        this.boundingBox.yPos = this.yPos - this.radius;
+    };
+
+    this.lastUpdate1 = this.update;
+    this.update = function()
+    {
+        this.lastUpdate1();
+        this.xPos += this.outerXVel;
+        this.yPos += this.outerYVel;  
+        this.updateBoundingBox();   
+        this.life--;
+        if(this.life < 0)
+        {
+            this.remove();
+        }       
+    };
+
+    this.hits = 0;
+    this.onCollide = function(object)
+    {
+        if(object.arrayName === "player")
+        {
+            object.hp -= this.damage;
+            this.onCollide = function(){};
+            this.remove();
+        }
+        if(object.physics.solidObject && object.arrayName !== this.arrayName && object.arrayName !== "ninja")
+        {
+            this.hits++;
+            if(this.hits >= 3)
+            {
+                this.remove();
+                this.onCollide = function(){};
+            }
+        }
+    };
+};
+gameObjects.addObject("ninjaStar", createArray(NinjaStar));
+
+var Ninja = function(xPos, yPos, width, height, colorValue)
+{
+    Enemy.call(this, xPos, yPos, width, height, colorValue || color(30, 67, 117), {
+        handleEdge : true,
+    }, false, 0.4);
+    this.addCast(this, "ninja");
+    this.stillTimer = 100;
+
+    this.shot = false;
+    this.createNinjaStar = function(amt)
+    {
+        for(var i = 0; i < (amt || 1); i++)
+        {
+            gameObjects.getObject("ninjaStar").add(this.xPos + this.width / 2, this.yPos + this.height / 2, 15, this.color);
+            this.ninjaStar = gameObjects.getObject("ninjaStar").getLast();          
+            cameraGrid.addReference(this.ninjaStar);
+            var speed = round(random(2, 5));
+            // if(this.xDir === "left")
+            // {
+            //     this.ninjaStar.outerXVel = -speed;
+            // }
+            // else if(this.xDir === "right")
+            // {
+            //     this.ninjaStar.outerXVel = speed;
+            // }
+            // else if(this.xDir === "")
+            // {
+                this.ninjaStar.outerXVel = (random(0, 100) >= 50) ? speed : -speed;
+            // }
+
+            physics.getMiddleXPos(this);
+            if(this.hitObject !== undefined)
+            {
+                if(this.middleXPos > this.hitObject.xPos + this.hitObject.width / 2)
+                {
+                    this.ninjaStar.outerXVel = -speed;
+                }else{
+                    this.ninjaStar.outerXVel = speed;
+                }
+            }
+        }   
+    };
+
+    this.shootTimer = 0;
+    this.maxShootTimer = round(random(75, 130));
+
+    this.stopTimer = 0;
+    this.maxStopTimer = 40;
+
+    this.maxEdgeTimer = 50;
+    this.edgeTimer = 50;
+
+    this.blocksBeSide = 0;
+    this.stopUp = 0;
+
+    this.yLock = 0;
+    this.downTimer = 0;
+    this.nextJump = 0;
+
+    this.imageName = "ninja";
+    this.draw = function()
+    {
+        image(storedImages[this.imageName], this.xPos, this.yPos, this.width, this.height);
+    };
+
+    this.lastUpdate1 = this.update;
+    this.setXDir = function(input)
+    {
+        if(!this.handledEdge)
+        {
+            this.xDir = input; 
+        }
+    }
+
+    var self = this;
+    this.jumpLock = false;
+    this.controls.up = function()
+    {
+        return (!self.jumpLock && self.yDir === "up");
+    };
+
+    this.update = function()
+    {
+        this.lastUpdate1();
+ 
+        if(this.blocksBeSide === 1)
+        {
+            this.yDir = "up";
+        }
+        else if(!this.setGoUp)
+        {
+            this.yDir = "";
+        }
+
+        this.blocksBeSide = 0;
+
+        if(this.shootTimer <= 0)
+        {
+            this.createNinjaStar(round(random(1, 3)));
+            this.shootTimer = this.maxShootTimer;
+            this.stopTimer = this.maxStopTimer;
+        }
+
+        if(this.stopTimer > 0)
+        {
+            if(this.xDir !== "")
+            {
+                this.lastXDir = this.xDir;
+            }
+            this.xDir = "";         
+        }
+        else if(this.xDir === "")
+        {
+            this.xDir = this.lastXDir;
+        }
+
+        if(this.castHitObject !== undefined || this.hitObject !== undefined)
+        {
+            var hitObject = this.castHitObject || this.hitObject;
+            var middleXPos = (hitObject.xPos + hitObject.boundingBox.width / 2);
+            if(hitObject.yPos + hitObject.height > this.yPos && 
+               hitObject.yPos < this.yPos + this.height)
+            {
+                physics.getMiddleXPos(this);
+                if(middleXPos < this.middleXPos)
+                {
+                    this.xDir = ("left");
+                }else{
+                    this.xDir = ("right");
+                }
+            }
+
+            if(this.ninjaStar !== undefined && !this.ninjaStar.setVel)
+            {
+                var middleYPos = (hitObject.yPos + hitObject.boundingBox.height / 2);
+                var speed = round(random(2, 4));
+
+                if(this.ninjaStar.xPos <= hitObject.xPos || 
+                   this.ninjaStar.xPos >= hitObject.xPos + hitObject.width)
+                {
+                    this.ninjaStar.outerXVel = 0;
+                    switch(true)
+                    {
+                        case (middleXPos < this.ninjaStar.xPos) :
+                            this.ninjaStar.outerXVel = -speed;
+                            break;
+
+                        case (middleXPos > this.ninjaStar.xPos) :
+                            this.ninjaStar.outerXVel = speed;
+                            break;
+                    }
+                    this.ninjaStar.outerYVel += ((random(0, 100) > 50) ? round(random(0, 2)) : -round(random(0, 2)));
+                }
+                if(this.ninjaStar.yPos <= hitObject.yPos || 
+                   this.ninjaStar.yPos >= hitObject.yPos + hitObject.height)
+                {
+                    this.ninjaStar.outerYVel = 0;
+                    switch(true)
+                    {
+                        case (middleYPos < this.ninjaStar.yPos) :
+                            this.ninjaStar.outerYVel = -speed;
+                            break;
+
+                        case (middleYPos > this.ninjaStar.yPos) :
+                            this.ninjaStar.outerYVel = speed;
+                            break;
+                    }
+                    
+                    this.ninjaStar.outerXVel += ((random(0, 100) > 50) ? round(random(0, 2)) : -round(random(0, 2)));   
+                }
+                //this.ninjaStar.setVel = true;
+            }
+        }  
+        this.stopTimer--;
+        this.shootTimer--;
+        this.stopUp--;
+        this.lastBlocksBelow = this.blocksBelow;
+
+        if(this.edgeTimer < 0)
+        {
+            this.edgeTimer = this.maxEdgeTimer;
+            this.setGoUp = false;
+        }
+
+        if(this.edgeTimer <= 0)
+        {
+            this.yDir = "up";
+            this.setGoUp = true;
+        }
+
+        this.nextJump--;
+        if(this.nextJump < 0)
+        {
+            this.jumpLock = true;
+        }else{
+            this.jumpLock = false;
+        }
+        if(this.nextJump < -100)
+        {
+            this.nextJump = 100;
+        }
+
+        if(this.stopUp > 0)
+        {
+            this.yDir = "";
+        }
+
+        if(this.handledEdge || this.lastHandledEdge)
+        {
+            this.edgeTimer--;
+        }
+        if(this.hp !== this.lastHp)
+        {
+            this.shootTimer = this.maxShootTimer * 1.5;
+        }
+
+        this.lastHp = this.hp;
+    };
+
+    this.lastOnCollide = this.onCollide;
+    this.onCollide = function(object, info)
+    {
+        this.lastOnCollide(object, info);
+
+        if(object.arrayName === "player")
+        {
+            this.hitObject = object;
+            if(this.hitObject.yPos + this.hitObject.height > this.yPos &&
+            this.hitObject.yPos < this.yPos + this.height)
+            {
+                this.yDir = "up";
+                this.middleXPos = this.xPos + this.width / 2;
+                if(this.hitObject.xPos + this.hitObject.width < this.middleXPos)
+                {
+                    this.setXDir("left");
+                }else{
+                    this.setXDir("right");
+                }
+            }
+        }
+        else if(object.type === "block")
+        {   
+            if(info.side === "up")
+            {
+                this.lastHandledEdge = this.handledEdge;
+                if(this.stopUp < 0)
+                {
+                    if(this.lastHitXSide === "left")
+                    {
+                        this.setXDir("right");
+                        this.yDir = "up";
+                    }
+                    else if(this.lastHitXSide === "right")
+                    {
+                        this.setXDir("left");                        
+                        this.yDir = "up";
+                    }
+                }
+            }
+
+            if(this.stopUp > 0)
+            {
+                this.yDir = "";
+                if(this.lastHitXSide === "left")
+                {
+                    this.setXDir("left");
+                }
+                if(this.lastHitXSide  === "right")
+                {
+                    this.setXDir("right");
+                }
+            }
+            if((info.side === "left" || info.side === "right") && this.stopUp <= 0)
+            {
+                this.blocksBeSide++;
+                if(info.side === "left")
+                {
+                    this.setXDir("right");
+                }
+                else if(info.side === "right")
+                {
+                    this.setXDir("left");
+                }
+            }
+
+            if((info.side === "left" || info.side === "right"))
+            {
+                this.lastHitXSide = info.side;
+            }
+
+            var underHit = ((info.side === "down" && (this.lastHitXSide === "left" || this.lastHitXSide === "right")) ||
+            (this.lastHitXSide === "down" && (info.side === "left" || info.side === "right")));
+            
+            if(underHit)
+            {
+                this.stopUp = 100;
+            }
+        }
+    };
+};
+gameObjects.addObject("ninja", createArray(Ninja));
+
 var Player = function(xPos, yPos, width, height, colorValue)
 {
     DynamicRect.call(this, xPos, yPos, width, height);
-    LifeForm.call(this, 5, true); //Inherit from life form width LifeForm.call(this, hp, notNormalDeath);
+    LifeForm.call(this, 5, true); //Inherit from life form with LifeForm.call(this, hp, notNormalDeath);
     
     this.restart = false;
     this.coins = 0;
@@ -4942,21 +5860,21 @@ var levels = {
         },
         inWater : false,
         plan : [
-            "                                                   ",
-            "                                                   ",
-            "                                                   ",
-            "      UFFFFFFFFFF                                  ",
-            "      U                                            ",
-            "      U               %       %                    ",
-            "      U                                            ",
-            "                                                   ",
-            "                                         e         ",
-            "                                       PPPP        ",
-            "                                                   ",
-            "a                                                  ",
-            "D   f   p            E                E            ",
-            "ggggggggggggbbbbbbbggggggggbbbggggggggggggggggggggg",
-            "dddddddddddddd###dddddwwwdddddddddddddddddddddddddd",
+            "                                                    ",
+            "                                                    ",
+            "                                                    ",
+            "                                                    ",
+            "                                                    ",
+            "                                                    ",
+            "                                      bbb           ",
+            "                                                    ",
+            "                                                    ",
+            "                               b                    ",
+            "                               b                    ",
+            "a                              b                    ",
+            "D   f     p    bbb I   I   I   b                    ",
+            "ggggggggggggbbbbbbbbggggggggbbbgggggggbbbbgggggggggg",
+            "ddddddddddddddd###dddddwwwdddddddddddddddddddddddddd",
         ],
     },
     "test" : {
@@ -4984,7 +5902,7 @@ var levels = {
             "                                               ",
             "                                               ",
             "                                               ",
-            "                                               ",
+            "  p                                            ",
             "ggggggggggggggggggggggggggggggggggggggggggggggg",
         ],
     },  
@@ -5113,11 +6031,19 @@ levels.build = function(plan)
                 case '%' :
                     gameObjects.getObject("shooter").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
                     break;
-                 
-                case '.' :
-                    gameObjects.getObject("bullet").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
+
+                case '*' :
+                    gameObjects.getObject("cloudMine").add(xPos + levelInfo.unitWidth / 2, yPos + levelInfo.unitHeight / 2, levelInfo.unitWidth);
                     break;
-                    
+
+                case '&' :
+                    gameObjects.getObject("skyViper").add(xPos, yPos, levelInfo.unitWidth * 1.35, levelInfo.unitHeight * 1.45);
+                    break;
+
+                case 'I' :
+                    gameObjects.getObject("ninja").add(xPos, yPos - levelInfo.unitHeight * 0.7, levelInfo.unitWidth * 1, levelInfo.unitHeight * 1.7);
+                    break;
+
                 case 'U' :
                     gameObjects.getObject("ladder").add(xPos, yPos, levelInfo.unitWidth, levelInfo.unitHeight);
                     break;
